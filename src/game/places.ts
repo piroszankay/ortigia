@@ -1,9 +1,9 @@
-import { ILLNESS, MIKATU, PHARMACIES, RESTAURANTS, SLEEP_KINDS, SLEEP_PLACES, WATER, WATER_POINTS } from '../config';
+import { FISHING_SPOTS, ILLNESS, MIKATU, PHARMACIES, RESTAURANTS, SLEEP_KINDS, SLEEP_PLACES, WATER, WATER_POINTS } from '../config';
 import { project, type Vec } from '../geo';
 import type { Edge, Graph } from '../map/graph';
 
 export type SleepKind = keyof typeof SLEEP_KINDS;
-export type PlaceKind = 'water' | 'food' | 'pharmacy' | 'haven' | SleepKind;
+export type PlaceKind = 'water' | 'food' | 'pharmacy' | 'haven' | 'fishing' | 'cat' | SleepKind;
 
 export interface Place {
   id: number;
@@ -39,6 +39,7 @@ export function buildPlaces(graph: Graph): Place[] {
     add({ kind: 'food', name: r.name, at: r.at, price: r.price, hunger: r.hunger, thirst: r.thirst, detail: r.menu, risk });
   }
   add({ kind: 'haven', name: MIKATU.name, at: MIKATU.at, price: MIKATU.price, hunger: 100, thirst: 100, detail: 'food, drink, rest & friends' });
+  for (const f of FISHING_SPOTS) add({ kind: 'fishing', name: f.name, at: f.at, price: 0, hunger: 0, thirst: 0, detail: 'fishing spot' });
   for (const ph of PHARMACIES) add({ kind: 'pharmacy', name: ph.name, at: ph.at, price: 0, hunger: 0, thirst: 0, detail: 'medicine' });
   for (const s of SLEEP_PLACES) {
     const k = SLEEP_KINDS[s.kind];

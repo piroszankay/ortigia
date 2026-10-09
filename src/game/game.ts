@@ -1,10 +1,10 @@
 import {
-  MIKATU,
-  BAD_GUYS, BARS, BEGGARS, DOG_POOP, GAME, ILLNESS, INTERACT, MEDICINE, NPC, SEX_WORKERS, SLEEP, SLEEP_KINDS, SLEEP_THEFT,
-  TOURISTS, WATER,
+  BAD_GUYS, BARS, BEGGARS, CATS, DOG_POOP, FISHING, GAME, ILLNESS, INTERACT, MEDICINE, MIKATU, NPC, PICKPOCKET, POLICE,
+  SEX_WORKERS, SLEEP, SLEEP_KINDS, SLEEP_THEFT, TOURISTS, WATER,
 } from '../config';
 import { dist, type Vec } from '../geo';
 import type { Departure, Edge, Graph } from '../map/graph';
+import { Market, type Owned } from './market';
 import { npcDistance, spawnNpcs, updateNpc, wander, type Npc } from './npcs';
 import { DIR_VEC, Player, type Dir4 } from './player';
 import { buildPlaces, isSleep, type Place } from './places';
@@ -14,7 +14,8 @@ export type BarKey = 'hunger' | 'thirst' | 'energy' | 'health';
 export type DeathCause = 'hunger' | 'thirst' | 'energy' | 'broke' | 'beaten' | 'poisoning' | 'infection';
 export type Ending =
   | { kind: 'death'; cause: DeathCause }
-  | { kind: 'win' | 'poorer'; via: string };
+  | { kind: 'win' | 'poorer'; via: string }
+  | { kind: 'arrested' };
 
 export interface Toast { text: string; tone: 'good' | 'bad' | 'info'; at: number }
 export interface Poop { id: number; pos: Vec; expires: number }
@@ -50,6 +51,11 @@ export class Game {
   /** Being carried along by a tour group. */
   drag: { npc: Npc; taps: number; lastEdge: Edge } | null = null;
   private dragImmuneUntil = 0;
+  /** Pickpocketed a tourist: police on your street segment will catch you. */
+  criminal = false;
+  fishing: { place: Place; biteAt: number } | null = null;
+  inventory: Owned[] = [];
+  readonly market: Market;
   /** An open pay / walk-on choice. */
   offer: { npc: Npc; until: number } | null = null;
   /** The place whose action window is open. */
@@ -64,7 +70,7 @@ export class Game {
   private choose: ReturnType<typeof wander>;
   ending: Ending | null = null;
   toasts: Toast[] = [];
-  stats = { spent: 0, meals: 0, drinks: 0, nights: 0, hits: 0, robbed: 0, cures: 0 };
+  stats = { spent: 0, meals: 0, drinks: 0, nights: 0, hits: 0, robbed: 0, cures: 0, fish: 0, fishMoney: 0, pickpockets: 0, caught: 0, trades: 0 };
 
   constructor(readonly graph: Graph, startMoney: number, startNode: number, private rng: Rng) {
     this.player = new Player(graph, startNode, rng);
@@ -73,6 +79,26 @@ export class Game {
     this.npcs = spawnNpcs(graph, rng, graph.node(startNode));
     this.choose = wander(graph, rng);
     this.nextPoopAt = DOG_POOP.spawnEvery * 0.5;
+    this.market = new Market(rng);
+    for (let i = 0; i < CATS.count; i++) {
+      const cat = { ...this.places[0], kind: 'cat' as const, name: 'Street cat', price: CATS.feedPrice, hunger: 0, thirst: 0, detail: 'a hungry cat', risk: 0, lastUsed: -Infinity, id: this.places.length };
+      this.places.push(cat);
+      this.moveCat(cat);
+    }
+  }
+
+  get cats() { return this.places.filter((p) => p.kind === 'cat'); }
+
+  private moveCat(cat: Place) {
+    const streets = this.graph.edges.filter((e) => e.kind === 'street');
+    for (let tries = 0; tries < 40; tries++) {
+      const e = streets[Math.floor(this.rng() * streets.length)];
+      const s = e.length * (0.2 + 0.6 * this.rng());
+      const pos = e.pointAt(s);
+      if (this.places.some((p) => p !== cat && dist(p.pos, pos) < INTERACT.radius * 1.2)) continue;
+      Object.assign(cat, { edge: e, s, pos, lastUsed: -Infinity });
+      return;
+    }
   }
 
   /** In-game clock in minutes since midnight of day 1. */
@@ -82,6 +108,7 @@ export class Game {
   steer(d: Dir4) {
     if (this.ending) return;
     if (this.sleeping) { this.wake(true); return; }
+    if (this.fishing) { this.stopFishing(); this.player.queue(d); return; }
     if (this.drag) { this.player.queued = d; this.player.queuedAge = 0; this.wriggle(); return; }
     this.player.queue(d);
   }
@@ -96,6 +123,9 @@ export class Game {
     this.updateBars(dt);
     for (const n of this.npcs) updateNpc(n, dt, this.choose);
     this.updatePoop();
+    this.market.update(this.time, this.inventory);
+    if (this.fishing && this.time >= this.fishing.biteAt) this.catchFish();
+    for (const c of this.cats) if (c.lastUsed > 0 && this.time - c.lastUsed > CATS.relocateAfter) this.moveCat(c);
 
     // movement
     if (this.drag) this.followGroup();
@@ -105,10 +135,12 @@ export class Game {
       return;
     }
 
+    this.policeCheck();
+    if (this.ending) return;
     if (!this.sleeping) {
       this.contacts();
       this.stepInPoop();
-      if (!this.drag) this.updateNearby();
+      if (!this.drag && !this.fishing) this.updateNearby();
     }
     if (this.offer && this.time > this.offer.until) { this.offer = null; this.toast('You walk on'); }
 
@@ -197,6 +229,16 @@ export class Game {
           this.toast(`${who}. −${def.damage} health`, 'bad');
           break;
         }
+        case 'police':
+          if (this.criminal || this.robbed <= 0) break;
+          {
+            const back = Math.round(this.robbed * POLICE.recoverShare);
+            this.money += back;
+            this.robbed = 0;
+            n.cooldownUntil = this.time + NPC.contactCooldown;
+            this.toast(`An officer tracks down the pickpocket. +€${back} recovered`, 'good');
+          }
+          break;
         case 'tourists':
           if (this.time < this.dragImmuneUntil) break;
           n.cooldownUntil = this.time + 1;
@@ -301,6 +343,89 @@ export class Game {
   }
 
   // ---------------------------------------------------------------------------
+  // police, pickpocketing, fishing, market
+  private policeCheck() {
+    if (!this.criminal) return;
+    const edge = this.player.walker.edge;
+    if (!this.npcs.some((n) => n.kind === 'police' && n.walker.edge === edge)) return;
+    this.stats.caught++;
+    if (POLICE.caughtGameOver) { this.end({ kind: 'arrested' }); return; }
+    const fine = Math.floor(this.money * POLICE.caughtFineShare);
+    this.money -= fine;
+    this.criminal = false;
+    this.toast(`Caught by the police! Fined €${fine}. Your record is clean again.`, 'bad');
+  }
+
+  /** A tour group close enough to rob, if any. */
+  get pickable(): Npc | null {
+    if (this.sleeping || this.fishing || this.ending) return null;
+    const me = this.player.walker.pos;
+    return this.npcs.find((n) => n.kind === 'tourists' && this.time >= (n.robbedUntil ?? 0) && npcDistance(n, me) <= PICKPOCKET.radius) ?? null;
+  }
+
+  pickpocket() {
+    const n = this.pickable;
+    if (!n) return;
+    const amount = PICKPOCKET.min + Math.floor(this.rng() * (PICKPOCKET.max - PICKPOCKET.min + 1));
+    this.money += amount;
+    n.robbedUntil = this.time + PICKPOCKET.groupCooldown;
+    this.stats.pickpockets++;
+    if (!this.criminal) this.toast('You are now a criminal. Avoid any street with police on it. Feeding a cat clears your record.', 'bad');
+    this.criminal = true;
+    this.toast(`Lifted a wallet: +€${amount}`, 'good');
+  }
+
+  private catchFish() {
+    const f = FISHING;
+    const kg = Math.round((f.minKg + (f.maxKg - f.minKg) * this.rng() ** 2) * 10) / 10;
+    const price = Math.max(1, Math.round(kg * f.pricePerKg));
+    const fish = kg < 0.5 ? 'sardine' : kg < 1.2 ? 'mackerel' : kg < 2.2 ? 'sea bream' : 'amberjack';
+    this.money += price;
+    this.stats.fish++;
+    this.stats.fishMoney += price;
+    this.toast(`Caught a ${kg} kg ${fish}, sold for €${price}`, 'good');
+    this.fishing = null;
+    this.player.walker.moving = true;
+  }
+
+  stopFishing() {
+    if (!this.fishing) return;
+    this.fishing = null;
+    this.player.walker.moving = true;
+    this.toast('You reel in an empty line');
+  }
+
+  buy() {
+    const d = this.market.offer;
+    if (!d || d.done || this.time > this.market.openUntil || this.money - d.price <= 0) return;
+    this.money -= d.price;
+    this.stats.spent += d.price;
+    this.inventory.push({ item: d.item, paid: d.price });
+    d.done = true;
+    this.stats.trades++;
+    this.toast(`Bought: ${d.item.name} −€${d.price}`, 'info');
+  }
+
+  get canSell() {
+    const d = this.market.demand;
+    return !!d && !d.done && this.inventory.some((o) => o.item.id === d.item.id);
+  }
+
+  sell() {
+    const d = this.market.demand;
+    if (!d || d.done || this.time > this.market.openUntil) return;
+    // sell the copy you paid least for: best profit
+    const mine = this.inventory.filter((o) => o.item.id === d.item.id).sort((a, b) => a.paid - b.paid)[0];
+    if (!mine) return;
+    this.inventory.splice(this.inventory.indexOf(mine), 1);
+    this.money += d.price;
+    d.done = true;
+    this.stats.trades++;
+    const profit = d.price - mine.paid;
+    this.toast(`Sold: ${d.item.name} +€${d.price} (${profit >= 0 ? '+' : '−'}€${Math.abs(profit)} on what you paid)`, profit >= 0 ? 'good' : 'bad');
+  }
+
+  // ---------------------------------------------------------------------------
   // places
   private updateNearby() {
     const pos = this.player.walker.pos;
@@ -336,7 +461,7 @@ export class Game {
   }
 
   refusal(p: Place): Refusal {
-    if (this.time - p.lastUsed < INTERACT.cooldown) return 'Just been here';
+    if (p.kind !== 'fishing' && this.time - p.lastUsed < INTERACT.cooldown) return 'Just been here';
     if (this.dirty && (p.kind === 'food' || p.kind === 'hostel' || p.kind === 'hotel')) return 'Too dirty';
     const price = this.priceOf(p);
     if (price > 0 && this.money - price <= 0) return 'Not enough money';
@@ -346,12 +471,13 @@ export class Game {
     if (p.kind === 'haven' && this.bars.hunger >= 100 && this.bars.thirst >= 100 && this.bars.energy >= 100
       && this.bars.health >= MIKATU.healthFloor) return 'All good already';
     if (isSleep(p.kind) && this.bars.energy >= SLEEP.minEnergyToSleep) return 'Not tired';
+    if (p.kind === 'fishing' && this.time - p.lastUsed < FISHING.spotCooldown) return 'Fish need a rest';
     return null;
   }
 
   /** The action button / Space: use the place in reach, or wriggle when dragged. */
   act() {
-    if (this.ending || this.sleeping) return;
+    if (this.ending || this.sleeping || this.fishing) return;
     if (this.drag) { this.wriggle(); return; }
     if (!this.near || this.refusal(this.near)) return;
     this.use(this.near);
@@ -398,20 +524,32 @@ export class Game {
         this.bars.health = clamp(this.bars.health + MEDICINE.tonicHealth);
         this.toast(`A bitter tonic${cost}. +${MEDICINE.tonicHealth} health`, 'good');
       }
-    } else {
+    } else if (p.kind === 'cat') {
+      const was = this.criminal;
+      this.criminal = false;
+      this.toast(was ? `You feed the cat${cost}. It purrs; the city forgives you. Record clean.` : `You feed the cat${cost}. It purrs.`, 'good');
+    } else if (p.kind === 'fishing') {
+      this.settleAt(p);
+      this.fishing = { place: p, biteAt: this.time + FISHING.waitMin + this.rng() * (FISHING.waitMax - FISHING.waitMin) };
+      this.toast(`You cast a line at ${p.name}`, 'info');
+    } else if (isSleep(p.kind)) {
       this.sleeping = { place: p, cap: SLEEP_KINDS[p.kind].maxEnergy };
-      const w = this.player.walker;
-      w.moving = false;
-      // lie down exactly on the bench/bed
-      w.edge = p.edge;
-      w.s = p.s;
-      if (!w.edge.canTravel(w.dir)) w.dir = w.dir === 1 ? -1 : 1;
-      this.player.queued = null;
+      this.settleAt(p);
       this.offer = null;
       this.stats.nights++;
       this.toast(`Lying down: ${p.name}${cost}`, 'info');
     }
     this.near = null;
+  }
+
+  /** Stop the dot exactly on a place (bench, bed, fishing spot). */
+  private settleAt(p: Place) {
+    const w = this.player.walker;
+    w.moving = false;
+    w.edge = p.edge;
+    w.s = p.s;
+    if (!w.edge.canTravel(w.dir)) w.dir = w.dir === 1 ? -1 : 1;
+    this.player.queued = null;
   }
 
   wake(early: boolean) {
@@ -438,6 +576,7 @@ export class Game {
     this.near = null;
     this.offer = null;
     this.drag = null;
+    this.fishing = null;
   }
 }
 

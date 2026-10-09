@@ -9,6 +9,8 @@ export const PLACE_COLORS: Record<PlaceKind, string> = {
   sofa: '#c0577a',
   pharmacy: '#1f8f4e',
   haven: '#16a3a0',
+  fishing: '#24557f',
+  cat: '#e08a2c',
 };
 
 /** A round badge with a simple white symbol, centred on (x, y), radius r (CSS px). */
@@ -82,6 +84,20 @@ export function drawPlaceGlyph(ctx: CanvasRenderingContext2D, kind: PlaceKind, x
       ctx.stroke();
       break;
     }
+    case 'fishing': // a fish
+      ctx.moveTo(x + 3.6 * u, y);
+      ctx.quadraticCurveTo(x, y - 3.6 * u, x - 2.6 * u, y);
+      ctx.quadraticCurveTo(x, y + 3.6 * u, x + 3.6 * u, y);
+      ctx.moveTo(x - 2.2 * u, y); ctx.lineTo(x - 4.6 * u, y - 2.4 * u); ctx.lineTo(x - 4.6 * u, y + 2.4 * u); ctx.closePath();
+      ctx.fill();
+      break;
+    case 'cat': // a cat face
+      ctx.moveTo(x - 3.6 * u, y - 0.4 * u); ctx.lineTo(x - 3.2 * u, y - 4.2 * u); ctx.lineTo(x - 0.9 * u, y - 2.2 * u);
+      ctx.lineTo(x + 0.9 * u, y - 2.2 * u); ctx.lineTo(x + 3.2 * u, y - 4.2 * u); ctx.lineTo(x + 3.6 * u, y - 0.4 * u);
+      ctx.arc(x, y + 0.2 * u, 3.6 * u, 0, Math.PI);
+      ctx.closePath();
+      ctx.fill();
+      break;
     case 'sofa':
       ctx.moveTo(x - 4.2 * u, y - 0.5 * u); ctx.lineTo(x - 4.2 * u, y + 3 * u);
       ctx.moveTo(x + 4.2 * u, y - 0.5 * u); ctx.lineTo(x + 4.2 * u, y + 3 * u);

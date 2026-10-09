@@ -58,6 +58,14 @@ Map build parameters (merge distances, dead-end length, bridges, bbox) are in `M
 - Paying the hidden **infected** sex worker leads, after an incubation period, to a slow health drain until you buy medicine.
 - **Pharmacies** (green cross) sell one medicine that cures everything you have. Its price is the sum of the cures you need. When you're well they sell a tonic for a little health.
 
+## Economy (Milestone 5)
+
+- **Fishing** at two waterfront spots. The dot stops, a fish bites after a few seconds, and it sells at once for a price that scales with its weight. Steering gives up. Each spot needs a rest afterwards.
+- **Pickpocketing**: next to a tour group a *Pickpocket* button appears (P on a keyboard). It steals a random amount and makes you a **criminal**.
+- **Police** (3) patrol. As a criminal you must never be on the same street segment as an officer; their segments glow red while you're wanted. Getting caught costs 60% of your money by default; set `POLICE.caughtGameOver` to make it game over. If you're not a criminal and were robbed in your sleep, touching an officer recovers half the stolen money.
+- **Street cats** (5, random spots): feeding one for €2 clears your criminal record.
+- **Market**: every 60 s an item is for sale and someone wants an item, both for 10 s (keys 1 / 2). There are 14 Ortigia items, priced randomly around their base value. Your bag is shown with the market.
+
 ## Mikatu
 
 Mikatu (teal sun, west waterfront in the south) is a place to eat, drink, rest and spend time with friends. One visit costs €12. It fills food, water and sleep to 100 and brings health back up to 50 (it never lowers it). It does not cure illness. Tune it in `MIKATU` in config.

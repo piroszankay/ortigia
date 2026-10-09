@@ -362,3 +362,85 @@ export const MEDICINE = {
   tonicPrice: 6,
   tonicHealth: 15,
 };
+
+// ---------------------------------------------------------------------------
+// ECONOMY (Milestone 5)
+// ---------------------------------------------------------------------------
+export const FISHING_SPOTS = [
+  { name: 'Foro Italico pier', at: [37.062025, 15.290467] as LatLon },
+  { name: 'Levante rocks', at: [37.061305, 15.296715] as LatLon },
+];
+export const FISHING = {
+  /** Seconds before a bite: random between min and max. */
+  waitMin: 3,
+  waitMax: 7,
+  /** Fish weight (kg): skewed towards small. Price = kg × pricePerKg (sold at once). */
+  minKg: 0.2,
+  maxKg: 3.5,
+  pricePerKg: 9,
+  /** A spot needs this long to recover after you fish there (s). */
+  spotCooldown: 30,
+};
+
+export const PICKPOCKET = {
+  /** You can pick pockets when a tour group is this close (m). */
+  radius: 26,
+  /** Euros stolen: random between min and max. */
+  min: 6,
+  max: 24,
+  /** The same group can't be robbed again for this long (s). */
+  groupCooldown: 30,
+};
+
+export const POLICE = {
+  count: 3,
+  speed: 21,
+  /** Touch distance for asking an officer for help (m). */
+  radius: 10,
+  /** Criminal on the same street segment as an officer = caught. */
+  caughtGameOver: false,
+  /** If not game over: share of your money confiscated. */
+  caughtFineShare: 0.6,
+  /** Not a criminal and robbed in your sleep: touching an officer recovers this share. */
+  recoverShare: 0.5,
+};
+
+export const CATS = {
+  count: 5,
+  /** Feeding a cat costs this much and clears your criminal record. */
+  feedPrice: 2,
+  /** A fed cat wanders off to a new spot after this long (s). */
+  relocateAfter: 20,
+};
+
+export const MARKET = {
+  /** First offer after this many seconds, then one every `interval`. */
+  firstAt: 20,
+  interval: 60,
+  /** How long the buy/sell panel stays open (s). */
+  window: 10,
+  /** Offer price = base × random(buyMin, buyMax); demand price = base × random(sellMin, sellMax). */
+  buyMin: 0.55,
+  buyMax: 1.35,
+  sellMin: 0.75,
+  sellMax: 1.7,
+  /** Chance the buyer wants something you already own (when you own anything). */
+  wantsOwnedChance: 0.5,
+};
+
+export const ITEMS = [
+  { id: 'coin', name: 'Old Greek coin', base: 40 },
+  { id: 'moor', name: "Ceramic Moor's head", base: 35 },
+  { id: 'camera', name: 'Vintage camera', base: 30 },
+  { id: 'lemon', name: 'Lemon tree cutting', base: 8 },
+  { id: 'bag', name: 'Fake designer bag', base: 15 },
+  { id: 'papyrus', name: 'Papyrus scroll', base: 20 },
+  { id: 'coral', name: 'Coral necklace', base: 28 },
+  { id: 'pupo', name: 'Sicilian puppet', base: 45 },
+  { id: 'marsala', name: 'Bottle of Marsala', base: 12 },
+  { id: 'pastry', name: 'Box of almond pastries', base: 10 },
+  { id: 'map', name: 'Antique map of Siracusa', base: 38 },
+  { id: 'lantern', name: "Fisherman's lantern", base: 18 },
+  { id: 'postcard', name: 'Caravaggio postcard', base: 4 },
+  { id: 'vespa', name: 'Mysterious Vespa key', base: 25 },
+];

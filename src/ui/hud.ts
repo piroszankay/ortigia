@@ -44,7 +44,7 @@ export class Hud {
       this.bars.get(k)!.classList.toggle('warn', v <= BARS.warnAt);
     }
     const m = Math.round(game.money);
-    const key = `${m}|${Math.floor(game.clockMinutes)}|${game.sleeping ? 1 : 0}|${game.dirty ? 1 : 0}|${game.robbed}|${game.drag ? 1 : 0}|${game.poisoned ? 1 : 0}|${game.infected ? 1 : 0}`;
+    const key = `${m}|${Math.floor(game.clockMinutes)}|${game.sleeping ? 1 : 0}|${game.dirty ? 1 : 0}|${game.robbed}|${game.drag ? 1 : 0}|${game.poisoned ? 1 : 0}|${game.infected ? 1 : 0}|${game.criminal ? 1 : 0}`;
     if (key === this.last) return;
     this.last = key;
     this.money.textContent = `€${m}`;
@@ -54,6 +54,7 @@ export class Hud {
     const chips: string[] = [];
     if (game.sleeping) chips.push('<span class="chip sleep">asleep</span>');
     if (game.drag) chips.push('<span class="chip dragged">in a tour group</span>');
+    if (game.criminal) chips.push('<span class="chip wanted">criminal</span>');
     if (game.dirty) chips.push('<span class="chip dirty">dirty shoes</span>');
     if (game.poisoned) chips.push('<span class="chip sick">food poisoning</span>');
     if (game.infected) chips.push('<span class="chip sick">infected</span>');

@@ -21,6 +21,7 @@ export function showTitle(onRolled: (money: number) => void, bridge: string) {
       <p>Your dot never stops walking. Steer with <b>arrow keys / WASD</b> or <b>swipe</b>: the turn is taken at the next corner where it's possible. Push against your direction to turn round. Small arrows mark one-way streets.</p>
       <p>Food, water and sleep drain all the time. If any of them hits zero, your health drops. Walk past a place and tap its button (or press <b>Space</b>) to use it. Fountains are free and work as you pass.</p>
       <p>Watch the streets: <b>spiky thugs</b> hurt you (bigger ones hurt more), <b>beggars</b> take a few euros, <b>tour groups</b> block the way and can sweep you along (tap fast to escape), and <b>dog poop</b> gets you turned away from restaurants and hotels until you wash at a fountain. Benches are free but pickpockets work at night.</p>
+      <p>Make money by <b>fishing</b> at the two fish spots, by <b>pickpocketing</b> tour groups (button appears when you're close), and by trading on the <b>market</b>: every minute a seller and a buyer appear for 10 seconds. Pickpocketing makes you a criminal: never share a street with the <b>police</b> (their streets glow red). Feed a <b>street cat</b> to clear your record. If you were robbed in your sleep, touch an officer to get some of it back.</p>
       <p>Bad fish and bad company can make you sick: your health drains until you buy medicine at a <b>pharmacy</b> (green cross).</p>
       <p>The green markers are the bridges out. Leave with more than you arrived with to win.</p>
     </details>`);
@@ -75,11 +76,14 @@ export function showEnding(game: Game, e: Ending, onAgain: () => void) {
   const stats = `<p class="stats">Arrived with €${game.startMoney} · left with €${Math.round(game.money)}<br>
     ${game.stats.meals} meals · ${game.stats.drinks} drinks · ${game.stats.nights} naps · €${game.stats.spent} spent<br>
     ${game.stats.hits} beatings · €${game.stats.robbed} pickpocketed · ${game.stats.cures} cures<br>
+    ${game.stats.fish} fish (€${game.stats.fishMoney}) · ${game.stats.pickpockets} wallets lifted · ${game.stats.trades} trades · caught ${game.stats.caught}×<br>
     ${clock} on the clock</p>`;
   let head: string;
   if (e.kind === 'death') {
     const [title, line] = DEATHS[e.cause];
     head = `<h1 class="dead">${title}</h1><p>${line}</p>`;
+  } else if (e.kind === 'arrested') {
+    head = `<h1 class="dead">Arrested</h1><p>The Questura has a lovely view of the harbour. You will have plenty of time to enjoy it.</p>`;
   } else if (e.kind === 'win') {
     head = `<h1 class="won">Arrivederci</h1><p>You cross ${e.via} <b>€${diff} richer</b> than you came. Ortigia was good to you.</p>`;
   } else {

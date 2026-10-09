@@ -1,13 +1,29 @@
 import { BAD_GUYS } from '../config';
 import type { Game } from '../game/game';
 import { groupMembers, type Npc } from '../game/npcs';
+import { drawPlaceGlyph } from './glyphs';
 import type { View } from './view';
 
 const HATS = ['#ffd23f', '#3bceac', '#ee4266', '#ffffff', '#5aa9e6', '#f78c2b'];
 
 /** Moving characters and street hazards, drawn every frame in screen space. */
 export function drawActors(ctx: CanvasRenderingContext2D, view: View, game: Game) {
+  // criminals see where the police are: their street segments glow red
+  if (game.criminal) {
+    const pulse = 0.28 + 0.12 * Math.sin(game.time * 5);
+    ctx.strokeStyle = `rgba(220,40,30,${pulse})`;
+    ctx.lineWidth = 11;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const n of game.npcs) {
+      if (n.kind !== 'police') continue;
+      ctx.beginPath();
+      n.walker.edge.pts.forEach((q, i) => (i ? ctx.lineTo(view.sx(q.x), view.sy(q.y)) : ctx.moveTo(view.sx(q.x), view.sy(q.y))));
+      ctx.stroke();
+    }
+  }
   for (const p of game.poops) drawPoop(ctx, view.sx(p.pos.x), view.sy(p.pos.y));
+  for (const c of game.cats) drawPlaceGlyph(ctx, 'cat', view.sx(c.pos.x), view.sy(c.pos.y), 6.5);
   // tourists first so smaller characters stay visible on top
   for (const n of game.npcs) if (n.kind === 'tourists') drawTourists(ctx, view, n, game.time);
   for (const n of game.npcs) {
@@ -16,6 +32,7 @@ export function drawActors(ctx: CanvasRenderingContext2D, view: View, game: Game
     if (n.kind === 'beggar') drawBeggar(ctx, p.x, p.y);
     else if (n.kind === 'sexworker') drawHeart(ctx, p.x, p.y);
     else if (n.kind === 'bad') drawBadGuy(ctx, p.x, p.y, BAD_GUYS.sizes[n.size!].radiusPx, game.time + n.id);
+    else if (n.kind === 'police') drawPolice(ctx, p.x, p.y, game.criminal, game.time);
   }
 }
 
@@ -119,4 +136,22 @@ export function drawTouristIcon(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.beginPath(); ctx.moveTo(x - 2, y - 2); ctx.lineTo(x - 2, y - 11); ctx.stroke();
   ctx.fillStyle = '#ee4266';
   ctx.beginPath(); ctx.moveTo(x - 8, y - 10); ctx.quadraticCurveTo(x - 2, y - 17, x + 4, y - 10); ctx.closePath(); ctx.fill();
+}
+
+function drawPolice(ctx: CanvasRenderingContext2D, x: number, y: number, alert: boolean, t: number) {
+  shadow(ctx, x, y, 6);
+  ctx.fillStyle = '#1d3f8f';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // cap band and badge
+  ctx.fillStyle = '#e8eefc';
+  ctx.fillRect(x - 4.2, y - 2.4, 8.4, 1.8);
+  ctx.fillStyle = '#e8c341';
+  ctx.beginPath(); ctx.arc(x, y + 1.8, 1.5, 0, Math.PI * 2); ctx.fill();
+  if (alert) {
+    // flashing light
+    ctx.fillStyle = Math.floor(t * 4) % 2 ? '#ff3b30' : '#4c8dff';
+    ctx.beginPath(); ctx.arc(x, y - 8.5, 2, 0, Math.PI * 2); ctx.fill();
+  }
 }

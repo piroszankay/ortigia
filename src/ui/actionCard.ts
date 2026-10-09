@@ -6,6 +6,8 @@ import { glyphCanvas, iconCanvas } from '../render/glyphs';
 
 export interface CardActions {
   act: () => void;
+  pickpocket: () => void;
+  stopFishing: () => void;
   wake: () => void;
   accept: () => void;
   decline: () => void;
@@ -33,9 +35,16 @@ export class ActionCard {
       ], left);
       return;
     }
+    const pick: Btn[] = game.pickable ? [{ label: 'Pickpocket', onClick: this.a.pickpocket, quiet: true }] : [];
     if (game.drag) {
-      this.show('drag', () => iconCanvas((c) => drawTouristIcon(c, 0, 3), 1.15), 'Stuck in a tour group', 'Tap fast, or steer at a corner',
-        [{ label: 'Wriggle!', onClick: this.a.act }], 1 - game.dragProgress);
+      this.show(`drag:${pick.length}`, () => iconCanvas((c) => drawTouristIcon(c, 0, 3), 1.15), 'Stuck in a tour group', 'Tap fast, or steer at a corner',
+        [{ label: 'Wriggle!', onClick: this.a.act }, ...pick], 1 - game.dragProgress);
+      return;
+    }
+    if (game.fishing) {
+      const { place, biteAt } = game.fishing;
+      this.show(`fish:${place.id}`, () => glyphCanvas('fishing'), place.name, 'Waiting for a bite…',
+        [{ label: 'Give up', onClick: this.a.stopFishing, quiet: true }], Math.max(0, Math.min(1, (biteAt - game.time) / 7)));
       return;
     }
     if (game.sleeping) {
@@ -45,11 +54,16 @@ export class ActionCard {
       return;
     }
     const p = game.near;
-    if (!p) return this.hide();
+    if (!p) {
+      if (!pick.length) return this.hide();
+      this.show('pick', () => iconCanvas((c) => drawTouristIcon(c, 0, 3), 1.15), 'A tour group', 'Wallets in back pockets…',
+        [{ ...pick[0], quiet: false }], 1);
+      return;
+    }
     const refusal = game.refusal(p);
     const price = game.priceOf(p);
-    this.show(`near:${p.id}:${refusal}:${price}:${game.sick}`, () => glyphCanvas(p.kind), p.name, describe(p, game),
-      [{ label: refusal ?? verb(p, price, game), onClick: this.a.act, disabled: !!refusal }], game.nearWindow);
+    this.show(`near:${p.id}:${refusal}:${price}:${game.sick}:${game.criminal}:${pick.length}`, () => glyphCanvas(p.kind), p.name, describe(p, game),
+      [{ label: refusal ?? verb(p, price, game), onClick: this.a.act, disabled: !!refusal }, ...pick], game.nearWindow);
   }
 
   private show(key: string, icon: () => HTMLCanvasElement, title: string, sub: string, btns: Btn[], timer: number) {
@@ -92,6 +106,8 @@ export class ActionCard {
 function verb(p: Place, price: number, game: Game) {
   const cost = price > 0 ? ` · €${price}` : '';
   if (p.kind === 'haven') return `Unwind${cost}`;
+  if (p.kind === 'fishing') return 'Cast a line';
+  if (p.kind === 'cat') return `Feed${cost}`;
   if (p.kind === 'pharmacy') return `${game.sick ? 'Buy medicine' : 'Buy tonic'}${cost}`;
   if (p.kind === 'water') return `Drink${cost}`;
   if (p.kind === 'food') return `Eat${cost}`;
@@ -99,6 +115,8 @@ function verb(p: Place, price: number, game: Game) {
 }
 
 function describe(p: Place, game: Game) {
+  if (p.kind === 'fishing') return 'Sit, wait, sell the catch';
+  if (p.kind === 'cat') return game.criminal ? 'Feeding it clears your record' : 'It looks hungry';
   if (p.kind === 'haven') return `Food, drink, rest & friends · all to 100, health to ${MIKATU.healthFloor}`;
   if (p.kind === 'pharmacy') {
     if (!game.sick) return `Tonic · +${MEDICINE.tonicHealth} health`;

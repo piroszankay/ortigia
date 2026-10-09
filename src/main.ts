@@ -12,6 +12,7 @@ import { MapRenderer } from './render/mapRenderer';
 import { View } from './render/view';
 import { ActionCard } from './ui/actionCard';
 import { Hud } from './ui/hud';
+import { MarketPanel } from './ui/marketPanel';
 import { showEnding, showTitle } from './ui/screens';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -26,10 +27,13 @@ const mapLayer = new MapRenderer(graph);
 const hud = new Hud(hudEl);
 const card = new ActionCard(document.getElementById('action')!, {
   act: () => game?.act(),
+  pickpocket: () => game?.pickpocket(),
+  stopFishing: () => game?.stopFishing(),
   wake: () => game?.wake(true),
   accept: () => game?.acceptOffer(),
   decline: () => game?.declineOffer(),
 });
+const market = new MarketPanel(document.getElementById('market')!, () => game?.buy(), () => game?.sell());
 const debug = new URLSearchParams(location.search).has('debug');
 const staticPlaces = buildPlaces(graph);
 // ?debug exposes the running game for console poking and screenshot scripts
@@ -64,9 +68,13 @@ window.addEventListener('keydown', (e) => {
   if (!game || game.ending) return;
   if (game.offer && (e.key === 'y' || e.key === 'Y')) { game.acceptOffer(); return; }
   if (game.offer && (e.key === 'n' || e.key === 'N' || e.key === 'Escape')) { game.declineOffer(); return; }
+  if (e.key === 'p' || e.key === 'P') { game.pickpocket(); return; }
+  if (e.key === '1') { game.buy(); return; }
+  if (e.key === '2') { game.sell(); return; }
   if (e.key === ' ' || e.key === 'Enter' || e.key === 'e' || e.key === 'E') {
     e.preventDefault();
     if (game.sleeping) game.wake(true);
+    else if (game.fishing) game.stopFishing();
     else game.act();
   }
 });
@@ -81,6 +89,7 @@ function resize() {
   const sidebar = r.height > h * 0.6; // wide screens: HUD is a left column
   const inset = sidebar ? { left: r.width, top: 0, right: 0, bottom: 14 } : { left: 0, top: r.height, right: 0, bottom: 14 };
   document.documentElement.style.setProperty('--map-left', `${inset.left}px`);
+  document.documentElement.style.setProperty('--hud-bottom', `${sidebar ? 0 : r.height}px`);
   view.fit(graph, w, h, inset);
   mapLayer.render(view, dpr, staticPlaces);
 }
@@ -115,6 +124,7 @@ function draw() {
   }
   hud.update(game);
   card.update(game);
+  market.update(game);
   drawToasts();
 }
 
@@ -160,6 +170,20 @@ function drawPlayer(g: Game) {
   ctx.strokeStyle = PALETTE.playerRing;
   ctx.lineWidth = 2.5;
   ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  if (g.fishing) {
+    // a line out to sea with a bobbing float, cast away from the island's middle
+    const c = graph.data.island.reduce((a, [x, y]) => ({ x: a.x + x, y: a.y + y }), { x: 0, y: 0 });
+    const cx = c.x / graph.data.island.length, cy = c.y / graph.data.island.length;
+    let dx = w.pos.x - cx, dy = w.pos.y - cy;
+    const L = Math.hypot(dx, dy) || 1;
+    dx /= L; dy /= L;
+    const fx = p.x + dx * 22, fy = p.y - dy * 22 + Math.sin(g.time * 4) * 1.5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.quadraticCurveTo(p.x + dx * 14, p.y - dy * 14 - 8, fx, fy); ctx.stroke();
+    ctx.fillStyle = '#ff4b3e';
+    ctx.beginPath(); ctx.arc(fx, fy, 2.4, 0, Math.PI * 2); ctx.fill();
+  }
   if (g.sleeping) {
     // drifting z's
     ctx.font = 'italic bold 11px Georgia, serif';

@@ -55,7 +55,7 @@ if (failures) process.exit(1);
 
 // 3. survival rules
 import { Game } from '../src/game/game';
-import { BAD_GUYS, BEGGARS, ILLNESS, MEDICINE, MIKATU, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
+import { BAD_GUYS, BEGGARS, CATS, FISHING, ILLNESS, MARKET, MEDICINE, MIKATU, POLICE, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
 {
   const start = graph.edges.find((e) => e.kind === 'bridge')!;
   const startNode = graph.node(start.a).exit ? start.b : start.a;
@@ -196,5 +196,61 @@ import { BAD_GUYS, BEGGARS, ILLNESS, MEDICINE, MIKATU, SEX_WORKERS, SLEEP_KINDS,
   g.near = mikatu; g.act();
   if (g.bars.health < 80) fail('Mikatu lowered health');
   console.log('ok: Mikatu');
+
+  // 6. economy (Milestone 5)
+  // fishing: dot stops, a fish is sold after the wait, the spot then needs a rest
+  g = mk(50); quiet(g);
+  const spot = g.places.find((p) => p.kind === 'fishing')!;
+  g.near = spot; g.act();
+  if (!g.fishing || g.player.walker.moving) fail('casting did not stop you');
+  for (let i = 0; i < 60 * (FISHING.waitMax + 0.5) && g.fishing; i++) g.update(step);
+  if (g.fishing || g.money <= 50 || g.stats.fish !== 1) fail(`no fish sold (money ${g.money})`);
+  if (g.refusal(spot) !== 'Fish need a rest') fail('fishing spot did not need a rest');
+  // pickpocketing → criminal; police on your street segment → fined and cleared
+  g = mk(100); quiet(g);
+  g.npcs.push(...new Game(graph, 100, startNode, mulberry32(5)).npcs);
+  for (const n of g.npcs) n.walker.speed = 0;
+  const tg = at(g, 'tourists');
+  moveTo(g, tg);
+  if (!g.pickable) fail('tour group next to you should be pickable');
+  g.pickpocket();
+  if (!g.criminal || g.money <= 100) fail('pickpocketing did not pay / make you a criminal');
+  const cop = at(g, 'police');
+  const loot = g.money;
+  moveTo(g, cop); cop.walker.s = (cop.walker.s + cop.walker.edge.length / 2) % cop.walker.edge.length; // same segment, not touching
+  g.update(step);
+  if (g.criminal || g.money !== loot - Math.floor(loot * POLICE.caughtFineShare)) fail(`police did not fine you (money ${g.money})`);
+  // game-over variant
+  (POLICE as any).caughtGameOver = true;
+  g.criminal = true; g.update(step);
+  if (g.ending?.kind !== 'arrested') fail('caughtGameOver did not end the game');
+  (POLICE as any).caughtGameOver = false;
+  // police recover part of what was stolen in your sleep
+  g = mk(100); quiet(g);
+  g.npcs.push(...new Game(graph, 100, startNode, mulberry32(5)).npcs.filter((n) => n.kind === 'police'));
+  for (const n of g.npcs) n.walker.speed = 0;
+  g.robbed = 40;
+  moveTo(g, at(g, 'police')); g.update(step);
+  if (g.robbed !== 0 || g.money !== 100 + Math.round(40 * POLICE.recoverShare)) fail('police did not recover stolen money');
+  // a fed cat clears your record
+  g = mk(100); quiet(g); g.criminal = true;
+  const cat = g.cats[0];
+  g.near = cat; g.act();
+  if (g.criminal || g.money !== 100 - CATS.feedPrice) fail('feeding the cat did not clear the record');
+  // market: buy, then sell to a buyer who wants it
+  g = mk(200); quiet(g);
+  for (let i = 0; i < 60 * (MARKET.firstAt + 0.1); i++) g.update(step);
+  if (!g.market.open) fail('market did not open');
+  const offer = g.market.offer!;
+  g.buy();
+  if (g.inventory.length !== 1 || g.money !== 200 - offer.price) fail('buying failed');
+  g.market.demand = { item: offer.item, price: offer.price + 10, done: false };
+  if (!g.canSell) fail('should be able to sell what you own');
+  g.sell();
+  if (g.inventory.length !== 0 || g.money !== 200 + 10) fail(`selling failed (money ${g.money})`);
+  // window closes
+  for (let i = 0; i < 60 * (MARKET.window + 0.5); i++) g.update(step);
+  if (g.market.open) fail('market window did not close');
+  console.log('ok: economy');
 }
 if (failures) process.exit(1);

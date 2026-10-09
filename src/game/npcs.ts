@@ -1,10 +1,10 @@
-import { BAD_GUYS, BEGGARS, NPC, SEX_WORKERS, TOURISTS } from '../config';
+import { BAD_GUYS, BEGGARS, NPC, POLICE, SEX_WORKERS, TOURISTS } from '../config';
 import { dist, type Vec } from '../geo';
 import type { Departure, Edge, Graph } from '../map/graph';
 import { Walker, onwardOptions, type Rng } from './walker';
 
 export type BadSize = keyof typeof BAD_GUYS.sizes;
-export type NpcKind = 'beggar' | 'sexworker' | 'bad' | 'tourists';
+export type NpcKind = 'beggar' | 'sexworker' | 'bad' | 'tourists' | 'police';
 
 export interface Npc {
   id: number;
@@ -22,6 +22,8 @@ export interface Npc {
   people?: number;
   /** Tourists: colour seed per person. */
   hats?: number[];
+  /** Tourists: can't be pickpocketed again until this game time. */
+  robbedUntil?: number;
 }
 
 /** Wander: mostly straight on, otherwise a random legal street; never onto a bridge. */
@@ -69,6 +71,7 @@ export function spawnNpcs(graph: Graph, rng: Rng, avoid: Vec): Npc[] {
   for (const [size, def] of Object.entries(BAD_GUYS.sizes) as [BadSize, (typeof BAD_GUYS.sizes)[BadSize]][]) {
     for (let i = 0; i < def.count; i++) add('bad', def.speed, def.radius, { size });
   }
+  for (let i = 0; i < POLICE.count; i++) add('police', POLICE.speed, POLICE.radius);
   for (let i = 0; i < TOURISTS.groups; i++) {
     const [lo, hi] = TOURISTS.size;
     const people = lo + Math.floor(rng() * (hi - lo + 1));
