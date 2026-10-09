@@ -214,10 +214,10 @@ export const WATER = {
 
 export const RESTAURANTS = [
   { name: 'Bar Apollo', at: [37.063536, 15.293371] as LatLon, price: 6, hunger: 25, thirst: 35, menu: 'granita & brioche' },
-  { name: 'Trattoria della Giudecca', at: [37.05946, 15.29461] as LatLon, price: 22, hunger: 70, thirst: 40, menu: 'pasta con le sarde' },
+  { name: 'Trattoria della Giudecca', at: [37.05946, 15.29461] as LatLon, price: 22, hunger: 70, thirst: 40, menu: 'pasta con le sarde', fishRisk: 0.1 },
   { name: 'Arancini da Turi', at: [37.061737, 15.292066] as LatLon, price: 5, hunger: 35, thirst: 5, menu: 'two arancini' },
   { name: 'Caffè del Duomo', at: [37.05991, 15.293146] as LatLon, price: 12, hunger: 30, thirst: 40, menu: 'espresso, cannolo, water' },
-  { name: 'Pescheria Levante', at: [37.057885, 15.296017] as LatLon, price: 18, hunger: 60, thirst: 30, menu: 'fried calamari' },
+  { name: 'Pescheria Levante', at: [37.057885, 15.296017] as LatLon, price: 18, hunger: 60, thirst: 30, menu: 'fried calamari', fishRisk: 0.16 },
   { name: 'Panineria del Mercato', at: [37.063914, 15.292887] as LatLon, price: 9, hunger: 50, thirst: 15, menu: 'market sandwich' },
 ];
 
@@ -322,4 +322,31 @@ export const SLEEP_THEFT = {
   chance: { bench: 0.4, hostel: 0.06, hotel: 0, sofa: 0 } as Record<string, number>,
   shareMin: 0.2,
   shareMax: 0.45,
+};
+
+// ---------------------------------------------------------------------------
+// HEALTH EVENTS (Milestone 4)
+// ---------------------------------------------------------------------------
+export const ILLNESS = {
+  /** Chance a restaurant meal gives you food poisoning (a restaurant may override with fishRisk). */
+  badFishChance: 0.07,
+  /** Health lost per second while food-poisoned. */
+  poisoningDrain: 0.8,
+  /** Seconds after exposure before the infection shows symptoms. */
+  infectionIncubation: 25,
+  /** Health lost per second while infected (after incubation). */
+  infectionDrain: 0.45,
+};
+
+export const PHARMACIES = [
+  { name: 'Farmacia Archimede', at: [37.061386, 15.294047] as LatLon },
+  { name: 'Farmacia del Castello', at: [37.056626, 15.29345] as LatLon },
+];
+export const MEDICINE = {
+  /** Price of the cure for each illness; one purchase cures everything you have. */
+  poisoningCure: 8,
+  infectionCure: 25,
+  /** When you're well, the pharmacy sells a tonic instead. */
+  tonicPrice: 6,
+  tonicHealth: 15,
 };

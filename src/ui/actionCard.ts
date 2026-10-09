@@ -1,4 +1,4 @@
-import { SEX_WORKERS, SLEEP_KINDS, SLEEP_THEFT } from '../config';
+import { MEDICINE, SEX_WORKERS, SLEEP_KINDS, SLEEP_THEFT } from '../config';
 import type { Game } from '../game/game';
 import { isSleep, type Place } from '../game/places';
 import { drawHeart, drawTouristIcon } from '../render/actors';
@@ -48,8 +48,8 @@ export class ActionCard {
     if (!p) return this.hide();
     const refusal = game.refusal(p);
     const price = game.priceOf(p);
-    this.show(`near:${p.id}:${refusal}:${price}`, () => glyphCanvas(p.kind), p.name, describe(p),
-      [{ label: refusal ?? verb(p, price), onClick: this.a.act, disabled: !!refusal }], game.nearWindow);
+    this.show(`near:${p.id}:${refusal}:${price}:${game.sick}`, () => glyphCanvas(p.kind), p.name, describe(p, game),
+      [{ label: refusal ?? verb(p, price, game), onClick: this.a.act, disabled: !!refusal }], game.nearWindow);
   }
 
   private show(key: string, icon: () => HTMLCanvasElement, title: string, sub: string, btns: Btn[], timer: number) {
@@ -89,14 +89,19 @@ export class ActionCard {
   }
 }
 
-function verb(p: Place, price: number) {
+function verb(p: Place, price: number, game: Game) {
   const cost = price > 0 ? ` · €${price}` : '';
+  if (p.kind === 'pharmacy') return `${game.sick ? 'Buy medicine' : 'Buy tonic'}${cost}`;
   if (p.kind === 'water') return `Drink${cost}`;
   if (p.kind === 'food') return `Eat${cost}`;
   return `Sleep${cost || ' · free'}`;
 }
 
-function describe(p: Place) {
+function describe(p: Place, game: Game) {
+  if (p.kind === 'pharmacy') {
+    if (!game.sick) return `Tonic · +${MEDICINE.tonicHealth} health`;
+    return `Cures ${[game.poisoned && 'food poisoning', game.infected && 'infection'].filter(Boolean).join(' & ')}`;
+  }
   if (isSleep(p.kind)) {
     const k = SLEEP_KINDS[p.kind];
     const comfort = k.comfort >= 14 ? 'deep sleep' : k.comfort >= 9 ? 'decent sleep' : 'poor sleep';
@@ -105,5 +110,5 @@ function describe(p: Place) {
     return `${k.label} · ${comfort} · ${safety}`;
   }
   const fx = [p.hunger && `+${p.hunger} food`, p.thirst && `+${p.thirst} water`].filter(Boolean).join(' ');
-  return `${p.detail} · ${fx}`;
+  return `${p.detail} · ${fx}${p.risk >= 0.1 ? ' · fish of uncertain age' : ''}`;
 }

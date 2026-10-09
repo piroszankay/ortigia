@@ -55,7 +55,7 @@ if (failures) process.exit(1);
 
 // 3. survival rules
 import { Game } from '../src/game/game';
-import { BAD_GUYS, BEGGARS, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
+import { BAD_GUYS, BEGGARS, ILLNESS, MEDICINE, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
 {
   const start = graph.edges.find((e) => e.kind === 'bridge')!;
   const startNode = graph.node(start.a).exit ? start.b : start.a;
@@ -121,7 +121,7 @@ import { BAD_GUYS, BEGGARS, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/co
   moveTo(g, sw); g.player.walker.speed = 0; g.update(step);
   if (!g.offer) fail('no offer from sex worker');
   g.acceptOffer();
-  if (!g.exposed || g.money !== 100 - SEX_WORKERS.price) fail('accepting the offer did not charge/expose');
+  if (g.exposedAt === null || g.money !== 100 - SEX_WORKERS.price) fail('accepting the offer did not charge/expose');
   // tourists: forced drag, wriggle free with taps
   g = mk(100, 3); freeze(g);
   const grp = at(g, 'tourists');
@@ -153,5 +153,36 @@ import { BAD_GUYS, BEGGARS, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/co
     }
   }
   console.log('ok: characters & hazards');
+
+  // 5. health events (Milestone 4)
+  const quiet = (g: Game) => { g.npcs.length = 0; g.player.walker.speed = 0; };
+  // bad fish with a rigged roll → poisoned → health drains → pharmacy cures
+  g = new Game(graph, 100, startNode, () => 0.001); quiet(g);
+  const fish = g.places.find((p) => p.kind === 'food')!;
+  g.bars.hunger = 20; g.near = fish; g.act();
+  if (!g.poisoned) fail('rigged bad fish did not poison');
+  const hp0 = g.bars.health;
+  for (let i = 0; i < 60 * 5; i++) g.update(step);
+  if (!(g.bars.health < hp0 - ILLNESS.poisoningDrain * 4)) fail('poisoning did not drain health');
+  const pharmacy = g.places.find((p) => p.kind === 'pharmacy')!;
+  const before4 = g.money;
+  g.near = pharmacy; g.act();
+  if (g.poisoned || g.money !== before4 - MEDICINE.poisoningCure) fail('pharmacy did not cure poisoning at the right price');
+  // infection: silent during incubation, then drains; medicine price includes both cures
+  g = mk(200); quiet(g);
+  g.offer = { npc: { infected: true } as any, until: 1e9 };
+  g.acceptOffer();
+  for (let i = 0; i < 60 * (ILLNESS.infectionIncubation - 1); i++) g.update(step);
+  if (g.infected) fail('infection showed before incubation ended');
+  for (let i = 0; i < 60 * 2; i++) g.update(step);
+  if (!g.infected) fail('infection never showed');
+  g.poisoned = true;
+  if (g.medicinePrice !== MEDICINE.poisoningCure + MEDICINE.infectionCure) fail('medicine price wrong');
+  // left untreated, poisoning kills with the right cause
+  g = mk(500); quiet(g); g.poisoned = true;
+  g.bars.hunger = g.bars.thirst = g.bars.energy = 100;
+  for (let i = 0; i < 60 * 600 && !g.ending; i++) { g.bars.hunger = g.bars.thirst = 100; g.bars.energy = 100; g.update(step); }
+  if (g.ending?.kind !== 'death' || g.ending.cause !== 'poisoning') fail(`untreated poisoning ending: ${JSON.stringify(g.ending)}`);
+  console.log('ok: health events');
 }
 if (failures) process.exit(1);

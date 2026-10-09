@@ -47,9 +47,15 @@ Map build parameters (merge distances, dead-end length, bridges, bbox) are in `M
 - Everyone wanders the streets, obeys one-way streets and never crosses a bridge.
 - **Thugs** (spiky): touching one costs health and energy. Bigger thugs hurt more. You get a short invulnerability after each hit.
 - **Beggars** take a fixed toll automatically, and that can bankrupt you.
-- **Sex workers** offer Pay / Walk on (Y / N on a keyboard). One of them is secretly infected; the effect arrives in Milestone 4.
+- **Sex workers** offer Pay / Walk on (Y / N on a keyboard). One of them is secretly infected.
 - **Tour groups** block streets. Bumping into one either bounces you back or drags you along. Tap fast, or have a turn queued at a corner, to get out.
 - **Dog poop** makes you dirty. Restaurants, the hostel and the hotel turn you away until you wash at a fountain.
 - **Pickpockets** may rob you while you sleep on a bench (small chance at the hostel).
+
+## Health events (Milestone 4)
+
+- Every restaurant meal has a small chance of **food poisoning**; it's higher at the fish places. Poisoning drains health until you buy medicine.
+- Paying the hidden **infected** sex worker leads, after an incubation period, to a slow health drain until you buy medicine.
+- **Pharmacies** (green cross) sell one medicine that cures everything you have. Its price is the sum of the cures you need. When you're well they sell a tonic for a little health.
 
 Add `?debug` to the URL to show node ids and expose `window.__game` in the console.

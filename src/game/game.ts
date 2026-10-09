@@ -1,5 +1,6 @@
 import {
-  BAD_GUYS, BARS, BEGGARS, DOG_POOP, GAME, INTERACT, NPC, SEX_WORKERS, SLEEP, SLEEP_KINDS, SLEEP_THEFT, TOURISTS, WATER,
+  BAD_GUYS, BARS, BEGGARS, DOG_POOP, GAME, ILLNESS, INTERACT, MEDICINE, NPC, SEX_WORKERS, SLEEP, SLEEP_KINDS, SLEEP_THEFT,
+  TOURISTS, WATER,
 } from '../config';
 import { dist, type Vec } from '../geo';
 import type { Departure, Edge, Graph } from '../map/graph';
@@ -9,7 +10,7 @@ import { buildPlaces, isSleep, type Place } from './places';
 import { matchDirection, type Rng } from './walker';
 
 export type BarKey = 'hunger' | 'thirst' | 'energy' | 'health';
-export type DeathCause = 'hunger' | 'thirst' | 'energy' | 'broke' | 'beaten';
+export type DeathCause = 'hunger' | 'thirst' | 'energy' | 'broke' | 'beaten' | 'poisoning' | 'infection';
 export type Ending =
   | { kind: 'death'; cause: DeathCause }
   | { kind: 'win' | 'poorer'; via: string };
@@ -36,8 +37,12 @@ export class Game {
   hasFriend = false;
   /** Stepped in dog poop: restaurants, hostel and hotel turn you away. */
   dirty = false;
-  /** Hidden until symptoms (Milestone 4): you paid the infected sex worker. */
-  exposed = false;
+  /** Paid the infected sex worker; symptoms start after the incubation period. */
+  exposedAt: number | null = null;
+  /** Symptomatic infection: health drains until you buy medicine. */
+  infected = false;
+  /** Food poisoning from a bad meal: health drains until you buy medicine. */
+  poisoned = false;
   /** Money taken by pickpockets so far (police can recover some later). */
   robbed = 0;
   invulnerableUntil = 0;
@@ -58,7 +63,7 @@ export class Game {
   private choose: ReturnType<typeof wander>;
   ending: Ending | null = null;
   toasts: Toast[] = [];
-  stats = { spent: 0, meals: 0, drinks: 0, nights: 0, hits: 0, robbed: 0 };
+  stats = { spent: 0, meals: 0, drinks: 0, nights: 0, hits: 0, robbed: 0, cures: 0 };
 
   constructor(readonly graph: Graph, startMoney: number, startNode: number, private rng: Rng) {
     this.player = new Player(graph, startNode, rng);
@@ -108,7 +113,11 @@ export class Game {
 
     if (this.bars.health <= 0) {
       const empty = (Object.entries(this.emptySince) as [DeathCause, number][]).sort((a, b) => a[1] - b[1]);
-      const cause: DeathCause = this.time - this.lastHitAt < 1 || !empty.length ? 'beaten' : empty[0][0];
+      const cause: DeathCause = this.time - this.lastHitAt < 1 ? 'beaten'
+        : empty.length ? empty[0][0]
+        : this.poisoned ? 'poisoning'
+        : this.infected ? 'infection'
+        : 'beaten';
       this.end({ kind: 'death', cause });
       return;
     }
@@ -132,8 +141,24 @@ export class Game {
       if (this.bars[v] <= 0) { empty++; this.emptySince[v] ??= this.time; }
       else delete this.emptySince[v];
     }
-    if (empty) this.bars.health = clamp(this.bars.health - BARS.healthLossPerEmptyBar * empty * dt);
+    // illness
+    if (this.exposedAt !== null && !this.infected && this.time - this.exposedAt >= ILLNESS.infectionIncubation) {
+      this.infected = true;
+      this.toast('You feel feverish. Some souvenirs you didn’t ask for. Find a pharmacy.', 'bad');
+    }
+    let drain = BARS.healthLossPerEmptyBar * empty;
+    if (this.poisoned) drain += ILLNESS.poisoningDrain;
+    if (this.infected) drain += ILLNESS.infectionDrain;
+    if (drain) this.bars.health = clamp(this.bars.health - drain * dt);
     else if (vitals.every((v) => this.bars[v] >= BARS.healthyThreshold)) this.bars.health = clamp(this.bars.health + BARS.healthRegen * dt);
+  }
+
+  get sick() { return this.poisoned || this.infected; }
+
+  /** What one visit to the pharmacy costs right now. */
+  get medicinePrice() {
+    if (!this.sick) return MEDICINE.tonicPrice;
+    return (this.poisoned ? MEDICINE.poisoningCure : 0) + (this.infected ? MEDICINE.infectionCure : 0);
   }
 
   // ---------------------------------------------------------------------------
@@ -236,7 +261,7 @@ export class Game {
     this.money -= SEX_WORKERS.price;
     this.stats.spent += SEX_WORKERS.price;
     this.bars.health = clamp(this.bars.health + SEX_WORKERS.healthBoost);
-    if (npc.infected) this.exposed = true;
+    if (npc.infected && this.exposedAt === null && !this.infected) this.exposedAt = this.time;
     this.toast(`A pleasant hour. −€${SEX_WORKERS.price}`, 'good');
   }
 
@@ -305,6 +330,7 @@ export class Game {
 
   /** Current price of a place (the sofa is cheaper once you have a friend). */
   priceOf(p: Place) {
+    if (p.kind === 'pharmacy') return this.medicinePrice;
     return p.kind === 'sofa' && this.hasFriend ? SLEEP_KINDS.sofa.friendPrice : p.price;
   }
 
@@ -315,6 +341,7 @@ export class Game {
     if (price > 0 && this.money - price <= 0) return 'Not enough money';
     if (p.kind === 'water' && this.bars.thirst >= 100 && !this.dirty) return 'Not thirsty';
     if (p.kind === 'food' && this.bars.hunger >= 100 && this.bars.thirst >= 100) return 'Not hungry';
+    if (p.kind === 'pharmacy' && !this.sick && this.bars.health >= 100) return 'Feeling fine';
     if (isSleep(p.kind) && this.bars.energy >= SLEEP.minEnergyToSleep) return 'Not tired';
     return null;
   }
@@ -348,6 +375,21 @@ export class Game {
       this.bars.thirst = clamp(this.bars.thirst + p.thirst);
       this.stats.meals++;
       this.toast(`${cap(p.detail)} at ${p.name}${cost}`, 'good');
+      if (!this.poisoned && this.rng() < p.risk) {
+        this.poisoned = true;
+        this.toast('Your stomach turns. That fish was not fresh. Find a pharmacy.', 'bad');
+      }
+    } else if (p.kind === 'pharmacy') {
+      if (this.sick) {
+        const what = [this.poisoned && 'food poisoning', this.infected && 'infection'].filter(Boolean).join(' and ');
+        this.poisoned = this.infected = false;
+        this.exposedAt = null;
+        this.stats.cures++;
+        this.toast(`Medicine for ${what}${cost}. Already feeling better.`, 'good');
+      } else {
+        this.bars.health = clamp(this.bars.health + MEDICINE.tonicHealth);
+        this.toast(`A bitter tonic${cost}. +${MEDICINE.tonicHealth} health`, 'good');
+      }
     } else {
       this.sleeping = { place: p, cap: SLEEP_KINDS[p.kind].maxEnergy };
       const w = this.player.walker;

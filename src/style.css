@@ -88,7 +88,7 @@ html, body {
 }
 .ac-glyph { display: flex; }
 .ac-info { display: flex; flex-direction: column; min-width: 0; }
-.ac-info b { font-family: var(--serif); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-info b { font-family: var(--serif); font-size: 16px; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .ac-info span { font-size: 12px; opacity: 0.75; }
 .ac-btn {
   font: inherit; font-weight: 700; font-size: 15px; color: #fff; background: var(--terracotta);
@@ -187,3 +187,4 @@ html, body {
   .ac-btns { grid-column: 1 / -1; }
   .ac-btns .ac-btn { flex: 1; }
 }
+.chip.sick { background: #3f7a3a; }

@@ -7,6 +7,7 @@ export const PLACE_COLORS: Record<PlaceKind, string> = {
   hostel: '#7b5ea7',
   hotel: '#b8902a',
   sofa: '#c0577a',
+  pharmacy: '#1f8f4e',
 };
 
 /** A round badge with a simple white symbol, centred on (x, y), radius r (CSS px). */
@@ -65,6 +66,10 @@ export function drawPlaceGlyph(ctx: CanvasRenderingContext2D, kind: PlaceKind, x
       ctx.closePath(); ctx.fill();
       break;
     }
+    case 'pharmacy': // the green cross
+      ctx.fillRect(x - 1.4 * u, y - 4.2 * u, 2.8 * u, 8.4 * u);
+      ctx.fillRect(x - 4.2 * u, y - 1.4 * u, 8.4 * u, 2.8 * u);
+      break;
     case 'sofa':
       ctx.moveTo(x - 4.2 * u, y - 0.5 * u); ctx.lineTo(x - 4.2 * u, y + 3 * u);
       ctx.moveTo(x + 4.2 * u, y - 0.5 * u); ctx.lineTo(x + 4.2 * u, y + 3 * u);
