@@ -102,20 +102,6 @@ html, body {
   transform-origin: left; opacity: 0.8;
 }
 
-/* ---- toasts ------------------------------------------------------------- */
-#toasts {
-  position: fixed; z-index: 4; pointer-events: none;
-  left: calc(var(--map-left) + (100vw - var(--map-left)) / 2); transform: translateX(-50%);
-  bottom: calc(100px + env(safe-area-inset-bottom, 0px));
-  display: flex; flex-direction: column; align-items: center; gap: 4px; width: max-content; max-width: 90vw;
-}
-.toast {
-  font-size: 13px; padding: 5px 12px; border-radius: 12px; background: rgba(33, 27, 23, 0.88); color: var(--paper);
-  transition: opacity 0.5s, transform 0.5s;
-}
-.toast.good { border-left: 3px solid var(--good); }
-.toast.bad { border-left: 3px solid var(--bad); }
-.toast.out { opacity: 0; transform: translateY(-8px); }
 
 /* ---- attribution -------------------------------------------------------- */
 #attribution {
@@ -214,11 +200,20 @@ html, body {
 .mk-lbl { font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.6; }
 .mk-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--terracotta); transform-origin: left; }
 .mk-bag { font-size: 11px; line-height: 1.35; }
-@media (max-width: 819px), (max-aspect-ratio: 5/4) {
-  /* messages go under the HUD so they don't collide with the market strip */
-  #toasts { bottom: auto; top: calc(var(--hud-bottom, 110px) + 6px); }
-}
 @media (min-width: 820px) and (min-aspect-ratio: 5/4) {
   #market { left: 14px; right: auto; bottom: 18px; width: 222px; margin: 0; }
   .mk-deals { grid-template-columns: 1fr; }
+}
+
+/* ---- messages: in the HUD, never over the map -------------------------- */
+.news { height: 17px; overflow: hidden; font-size: 12px; line-height: 17px; }
+.news .msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 0.6s; }
+.news .msg:not(:first-child) { display: none; }
+.news .msg.good { color: var(--good); }
+.news .msg.bad { color: var(--bad); }
+.news .msg.old { opacity: 0.5; }
+@media (min-width: 820px) and (min-aspect-ratio: 5/4) {
+  .news { height: auto; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.35; margin-top: 6px; }
+  .news .msg { white-space: normal; }
+  .news .msg:not(:first-child) { display: block; opacity: 0.55; }
 }

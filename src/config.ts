@@ -83,10 +83,23 @@ export const RENDER = {
   onewayArrowSize: 3.2,
   /** Show street names (only for streets at least this long, m). 0 = never. */
   streetLabelMinLength: 0,
-  playerRadiusPx: 6,
+  playerRadiusPx: 7.5,
+  /** "You are here" ping: a ring that grows from the player every period (s) up to maxPx. */
+  playerPingPeriod: 1.4,
+  playerPingMaxPx: 26,
+  /** Fading trail behind the player: number of dots and seconds between them. */
+  playerTrailDots: 7,
+  playerTrailGap: 0.05,
   placeRadiusPx: 7.5,
   /** Seconds a queued-turn hint arrow stays visible after input. */
   queuedHintFade: 0.4,
+};
+
+export const HUD_LOG = {
+  /** Messages kept in the desktop sidebar log (phones show only the newest). */
+  keep: 5,
+  /** A message dims after this many seconds. */
+  fadeAfter: 3.5,
 };
 
 export const PALETTE = {
@@ -108,7 +121,8 @@ export const PALETTE = {
   labelOnSea: 'rgba(235,245,250,0.85)',
   exit: '#2f9e6b',
   player: '#ffffff',
-  playerRing: '#16325c',
+  playerRing: '#0d1b33',
+  playerPing: '#ffe14d',
 };
 
 // ---------------------------------------------------------------------------

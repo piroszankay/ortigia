@@ -1,4 +1,4 @@
-import { BARS } from '../config';
+import { BARS, HUD_LOG } from '../config';
 import type { BarKey, Game } from '../game/game';
 
 const BAR_LABELS: [BarKey, string][] = [['hunger', 'Food'], ['thirst', 'Water'], ['energy', 'Sleep'], ['health', 'Health']];
@@ -11,6 +11,7 @@ export class Hud {
   private fills = new Map<BarKey, HTMLElement>();
   private bars = new Map<BarKey, HTMLElement>();
   private status: HTMLElement;
+  private news: HTMLElement;
   private last = '';
 
   constructor(private el: HTMLElement) {
@@ -23,17 +24,34 @@ export class Hud {
       <div class="bars">${BAR_LABELS.map(([k, l]) => `
         <div class="bar bar-${k}"><span class="lbl">${l}</span><div class="track"><div class="fill"></div></div></div>`).join('')}
       </div>
-      <div class="status"></div>`;
+      <div class="status"></div>
+      <div class="news" aria-live="polite"></div>`;
     this.money = el.querySelector('.money-now')!;
     this.start = el.querySelector('.money-start')!;
     this.clock = el.querySelector('.clock')!;
     this.status = el.querySelector('.status')!;
+    this.news = el.querySelector('.news')!;
     for (const [k] of BAR_LABELS) {
       const bar = el.querySelector<HTMLElement>(`.bar-${k}`)!;
       this.bars.set(k, bar);
       this.fills.set(k, bar.querySelector('.fill')!);
     }
   }
+
+  /**
+   * Messages live in the HUD, never on the map: phones show the newest one
+   * on a single line, the desktop sidebar keeps a short log.
+   */
+  message(text: string, tone: string) {
+    const el = document.createElement('div');
+    el.className = `msg ${tone}`;
+    el.textContent = text;
+    this.news.prepend(el);
+    while (this.news.children.length > HUD_LOG.keep) this.news.lastChild!.remove();
+    setTimeout(() => el.classList.add('old'), HUD_LOG.fadeAfter * 1000);
+  }
+
+  clearMessages() { this.news.innerHTML = ''; }
 
   update(game: Game | null) {
     if (!game) { this.el.classList.add('idle'); return; }

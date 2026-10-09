@@ -18,7 +18,6 @@ import { showEnding, showTitle } from './ui/screens';
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 const hudEl = document.getElementById('hud')!;
-const toastsEl = document.getElementById('toasts')!;
 const attribution = document.getElementById('attribution')!;
 
 const graph = new Graph(mapData as MapData);
@@ -46,6 +45,7 @@ attribution.innerHTML = graph.data.source === 'osm'
 // ---------------------------------------------------------------------------
 let game: Game | null = null;
 let lastDirAt = -Infinity;
+const trail: { x: number; y: number; t: number }[] = [];
 
 const arrivalBridge = graph.edges.find((e) => e.kind === 'bridge' && e.name === GAME.arrivalBridge) ?? graph.edges.find((e) => e.kind === 'bridge')!;
 const arrivalNode = graph.node(arrivalBridge.a).exit ? arrivalBridge.b : arrivalBridge.a;
@@ -55,7 +55,8 @@ function title() {
   showTitle((money) => {
     game = new Game(graph, money, arrivalNode, Math.random);
     shownToasts = 0;
-    toastsEl.innerHTML = '';
+    hud.clearMessages();
+    trail.length = 0;
   }, arrivalBridge.name ?? 'the bridge');
 }
 
@@ -162,13 +163,34 @@ function drawPlayer(g: Game) {
     ctx.fill();
     ctx.globalAlpha = 1;
   }
+  // fading trail of where you just were
+  if (w.moving && g.time - (trail[0]?.t ?? -1) >= RENDER.playerTrailGap) {
+    trail.unshift({ ...w.pos, t: g.time });
+    trail.length = Math.min(trail.length, RENDER.playerTrailDots);
+  }
+  trail.forEach((tp, i) => {
+    if (i === 0) return;
+    const sp = view.toScreen(tp);
+    ctx.fillStyle = `rgba(255,255,255,${0.5 * (1 - i / trail.length)})`;
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, r * (0.75 - (0.4 * i) / trail.length), 0, Math.PI * 2); ctx.fill();
+  });
+  // "you are here" ping: a yellow ring that keeps growing out of the dot
+  const ph = (g.time % RENDER.playerPingPeriod) / RENDER.playerPingPeriod;
+  ctx.strokeStyle = PALETTE.playerPing;
+  ctx.globalAlpha = 0.9 * (1 - ph);
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(p.x, p.y, r + 2 + ph * (RENDER.playerPingMaxPx - r), 0, Math.PI * 2); ctx.stroke();
+  ctx.globalAlpha = 1;
   // blink while invulnerable after a hit
   if (g.invulnerable && Math.floor(g.time * 10) % 2) ctx.globalAlpha = 0.35;
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.beginPath(); ctx.arc(p.x + 1, p.y + 1.5, r + 1, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.arc(p.x + 1, p.y + 2, r + 3, 0, Math.PI * 2); ctx.fill();
+  // yellow halo, dark ring, white core: reads on roofs, streets and sea alike
+  ctx.fillStyle = PALETTE.playerPing;
+  ctx.beginPath(); ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = g.sleeping ? '#d9d4f0' : g.dirty ? '#d8c3a5' : PALETTE.player;
   ctx.strokeStyle = PALETTE.playerRing;
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 3;
   ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   if (g.fishing) {
     // a line out to sea with a bobbing float, cast away from the island's middle
@@ -210,13 +232,7 @@ function drawToasts() {
   if (!game) return;
   while (shownToasts < game.toasts.length) {
     const t = game.toasts[shownToasts++];
-    const el = document.createElement('div');
-    el.className = `toast ${t.tone}`;
-    el.textContent = t.text;
-    toastsEl.appendChild(el);
-    setTimeout(() => el.classList.add('out'), 2200);
-    setTimeout(() => el.remove(), 2700);
-    while (toastsEl.children.length > 3) toastsEl.firstChild!.remove();
+    hud.message(t.text, t.tone);
   }
 }
 
