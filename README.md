@@ -42,4 +42,14 @@ Map build parameters (merge distances, dead-end length, bridges, bbox) are in `M
 - Sleeping stops the dot until energy reaches that bed's cap. Any steering input wakes you early.
 - You die when health or money reaches zero. Reach a bridge to leave: you win if you have more money than you arrived with.
 
+## Characters and hazards (Milestone 3)
+
+- Everyone wanders the streets, obeys one-way streets and never crosses a bridge.
+- **Thugs** (spiky): touching one costs health and energy. Bigger thugs hurt more. You get a short invulnerability after each hit.
+- **Beggars** take a fixed toll automatically, and that can bankrupt you.
+- **Sex workers** offer Pay / Walk on (Y / N on a keyboard). One of them is secretly infected; the effect arrives in Milestone 4.
+- **Tour groups** block streets. Bumping into one either bounces you back or drags you along. Tap fast, or have a turn queued at a corner, to get out.
+- **Dog poop** makes you dirty. Restaurants, the hostel and the hotel turn you away until you wash at a fountain.
+- **Pickpockets** may rob you while you sleep on a bench (small chance at the hostel).
+
 Add `?debug` to the URL to show node ids and expose `window.__game` in the console.

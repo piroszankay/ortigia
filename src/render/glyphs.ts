@@ -87,3 +87,17 @@ export function glyphCanvas(kind: PlaceKind, size = 34): HTMLCanvasElement {
   drawPlaceGlyph(ctx, kind, size / 2, size / 2, size / 2 - 3);
   return c;
 }
+
+/** A small standalone canvas drawn by `draw` around its centre. */
+export function iconCanvas(draw: (ctx: CanvasRenderingContext2D, cx: number, cy: number) => void, scale = 1.6, size = 34): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  c.width = c.height = size * dpr;
+  c.style.width = c.style.height = `${size}px`;
+  const ctx = c.getContext('2d')!;
+  ctx.scale(dpr, dpr);
+  ctx.translate(size / 2, size / 2);
+  ctx.scale(scale, scale);
+  draw(ctx, 0, 0);
+  return c;
+}

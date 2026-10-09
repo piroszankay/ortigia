@@ -58,8 +58,7 @@ html, body {
 .bar-health .fill { background: var(--c-health); }
 .bar.warn .lbl { color: var(--bad); animation: blink 0.8s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0.35; } }
-.status { display: flex; gap: 6px; flex-wrap: wrap; min-height: 0; }
-.status:empty { display: none; }
+.status { display: flex; gap: 6px; flex-wrap: wrap; min-height: 19px; }
 .chip { font-size: 11px; padding: 1px 8px; border-radius: 9px; background: rgba(255, 255, 255, 0.12); }
 .chip.sleep { background: #4c4a7a; }
 
@@ -171,3 +170,20 @@ html, body {
 .dice-result .sum { font-size: 13px; opacity: 0.7; }
 .dice-result .purse { font-family: var(--serif); font-size: 34px; color: var(--terracotta-dark); }
 @media (prefers-reduced-motion: reduce) { .dice.rolling .die { animation: none; } }
+
+/* ---- Milestone 3 additions --------------------------------------------- */
+.ac-btns { display: flex; gap: 6px; }
+.ac-btn.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px #cdbb95; }
+.ac-btn.quiet:active { background: var(--paper-2); }
+.chip.dirty { background: #6b4423; }
+.chip.robbed { background: #7d2f2f; }
+.chip.dragged { background: #b8366a; }
+.chip.hurt { background: #8e2f22; }
+#action.two { grid-template-columns: auto 1fr; }
+#action.two .ac-btns { grid-column: 1 / -1; }
+#action.two .ac-btn { flex: 1; }
+@media (max-width: 380px) {
+  #action { grid-template-columns: auto 1fr; }
+  .ac-btns { grid-column: 1 / -1; }
+  .ac-btns .ac-btn { flex: 1; }
+}

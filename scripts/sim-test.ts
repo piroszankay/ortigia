@@ -55,7 +55,7 @@ if (failures) process.exit(1);
 
 // 3. survival rules
 import { Game } from '../src/game/game';
-import { SLEEP_KINDS } from '../src/config';
+import { BAD_GUYS, BEGGARS, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
 {
   const start = graph.edges.find((e) => e.kind === 'bridge')!;
   const startNode = graph.node(start.a).exit ? start.b : start.a;
@@ -90,5 +90,68 @@ import { SLEEP_KINDS } from '../src/config';
     causes[k] = (causes[k] ?? 0) + 1;
   }
   console.log('ok: survival rules; hands-off outcomes over 20 runs:', JSON.stringify(causes));
+
+  // 4. characters & hazards (Milestone 3)
+  const at = (g: Game, kind: string) => g.npcs.find((n) => n.kind === kind)!;
+  const moveTo = (g: Game, n: { walker: { edge: any; s: number; dir: 1 | -1 } }) => {
+    const w = g.player.walker; w.edge = n.walker.edge; w.s = n.walker.s; w.dir = n.walker.dir;
+  };
+  const freeze = (g: Game) => { for (const n of g.npcs) n.walker.speed = 0; };
+  // beggar takes the toll once, then cools down
+  g = mk(50); freeze(g);
+  moveTo(g, at(g, 'beggar')); g.player.walker.speed = 0;
+  g.update(step); g.update(step);
+  if (g.money !== 50 - BEGGARS.toll) fail(`beggar toll wrong: ${g.money}`);
+  // beggar can bankrupt you
+  g = mk(2); freeze(g); moveTo(g, at(g, 'beggar')); g.player.walker.speed = 0;
+  g.update(step);
+  if (g.ending?.kind !== 'death' || g.ending.cause !== 'broke') fail('beggar should be able to break you');
+  // bad guy hurts, then you're invulnerable
+  g = mk(50); freeze(g);
+  const thug = g.npcs.find((n) => n.kind === 'bad' && n.size === 'large')!;
+  moveTo(g, thug); g.player.walker.speed = 0;
+  g.update(step);
+  const h1 = g.bars.health;
+  if (h1 > 100 - BAD_GUYS.sizes.large.damage + 1) fail('large thug did no damage');
+  thug.cooldownUntil = 0; g.update(step);
+  if (g.bars.health < h1 - 0.1) fail('hit again while invulnerable');
+  // sex worker offer; paying the infected one exposes you
+  g = mk(100); freeze(g);
+  const sw = g.npcs.find((n) => n.kind === 'sexworker' && n.infected)!;
+  moveTo(g, sw); g.player.walker.speed = 0; g.update(step);
+  if (!g.offer) fail('no offer from sex worker');
+  g.acceptOffer();
+  if (!g.exposed || g.money !== 100 - SEX_WORKERS.price) fail('accepting the offer did not charge/expose');
+  // tourists: forced drag, wriggle free with taps
+  g = mk(100, 3); freeze(g);
+  const grp = at(g, 'tourists');
+  (g as any).startDrag(grp);
+  for (let i = 0; i < TOURISTS.tapsToEscape; i++) g.act();
+  if (g.drag) fail('tapping did not free you from the tour group');
+  // dog poop: dirty → refused → wash
+  g = mk(100); freeze(g);
+  g.poops.push({ id: 99, pos: g.player.walker.pos, expires: 1e9 });
+  g.update(step);
+  if (!g.dirty) fail('poop did not make you dirty');
+  if (g.refusal(g.places.find((p) => p.kind === 'food')!) !== 'Too dirty') fail('restaurant let a dirty traveller in');
+  const fountain = g.places.find((p) => p.kind === 'water')!;
+  g.near = fountain; (g as any).use(fountain);
+  if (g.dirty) fail('fountain did not wash you');
+  // bench pickpocket with a rigged dice
+  g = new Game(graph, 100, startNode, () => 0);
+  const bench = g.places.find((p) => p.kind === 'bench')!;
+  g.bars.energy = 10; g.near = bench; g.act(); g.wake(true);
+  if (!(g.robbed > 0 && g.money < 100)) fail('bench theft did not happen with a rigged roll');
+  // tourists never leave via bridges; characters respect one-ways
+  g = mk(100, 11);
+  for (let i = 0; i < 60 * 300; i++) {
+    g.update(step);
+    if (g.ending) break;
+    for (const n of g.npcs) {
+      if (!n.walker.edge.canTravel(n.walker.dir)) { fail(`${n.kind} going the wrong way down a one-way`); break; }
+      if (n.walker.edge.kind === 'bridge') { fail(`${n.kind} on a bridge`); break; }
+    }
+  }
+  console.log('ok: characters & hazards');
 }
 if (failures) process.exit(1);

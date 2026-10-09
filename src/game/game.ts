@@ -1,16 +1,21 @@
-import { BARS, GAME, INTERACT, SLEEP, SLEEP_KINDS, WATER } from '../config';
-import { dist } from '../geo';
-import type { Graph } from '../map/graph';
-import { Player, type Dir4 } from './player';
+import {
+  BAD_GUYS, BARS, BEGGARS, DOG_POOP, GAME, INTERACT, NPC, SEX_WORKERS, SLEEP, SLEEP_KINDS, SLEEP_THEFT, TOURISTS, WATER,
+} from '../config';
+import { dist, type Vec } from '../geo';
+import type { Departure, Edge, Graph } from '../map/graph';
+import { npcDistance, spawnNpcs, updateNpc, wander, type Npc } from './npcs';
+import { DIR_VEC, Player, type Dir4 } from './player';
 import { buildPlaces, isSleep, type Place } from './places';
+import { matchDirection, type Rng } from './walker';
 
 export type BarKey = 'hunger' | 'thirst' | 'energy' | 'health';
-export type DeathCause = 'hunger' | 'thirst' | 'energy' | 'broke';
+export type DeathCause = 'hunger' | 'thirst' | 'energy' | 'broke' | 'beaten';
 export type Ending =
   | { kind: 'death'; cause: DeathCause }
   | { kind: 'win' | 'poorer'; via: string };
 
 export interface Toast { text: string; tone: 'good' | 'bad' | 'info'; at: number }
+export interface Poop { id: number; pos: Vec; expires: number }
 
 /** Why a place can't be used right now (null = it can). */
 export type Refusal = string | null;
@@ -19,6 +24,8 @@ export type Refusal = string | null;
 export class Game {
   readonly player: Player;
   readonly places: Place[];
+  readonly npcs: Npc[];
+  poops: Poop[] = [];
   bars: Record<BarKey, number> = { ...BARS.start };
   money: number;
   readonly startMoney: number;
@@ -27,28 +34,49 @@ export class Game {
   sleeping: { place: Place; cap: number } | null = null;
   /** Unlocked later by parties; makes the sofa cheaper. */
   hasFriend = false;
+  /** Stepped in dog poop: restaurants, hostel and hotel turn you away. */
+  dirty = false;
+  /** Hidden until symptoms (Milestone 4): you paid the infected sex worker. */
+  exposed = false;
+  /** Money taken by pickpockets so far (police can recover some later). */
+  robbed = 0;
+  invulnerableUntil = 0;
+  /** Being carried along by a tour group. */
+  drag: { npc: Npc; taps: number; lastEdge: Edge } | null = null;
+  private dragImmuneUntil = 0;
+  /** An open pay / walk-on choice. */
+  offer: { npc: Npc; until: number } | null = null;
   /** The place whose action window is open. */
   near: Place | null = null;
   private nearUntil = 0;
   private nearInRange = false;
   /** When each of hunger/thirst/energy hit zero (for the death cause). */
   private emptySince: Partial<Record<BarKey, number>> = {};
+  private lastHitAt = -Infinity;
+  private nextPoopAt: number;
+  private poopIds = 0;
+  private choose: ReturnType<typeof wander>;
   ending: Ending | null = null;
   toasts: Toast[] = [];
-  stats = { spent: 0, meals: 0, drinks: 0, nights: 0 };
+  stats = { spent: 0, meals: 0, drinks: 0, nights: 0, hits: 0, robbed: 0 };
 
-  constructor(readonly graph: Graph, startMoney: number, startNode: number, rng: () => number) {
+  constructor(readonly graph: Graph, startMoney: number, startNode: number, private rng: Rng) {
     this.player = new Player(graph, startNode, rng);
     this.places = buildPlaces(graph);
     this.money = this.startMoney = startMoney;
+    this.npcs = spawnNpcs(graph, rng, graph.node(startNode));
+    this.choose = wander(graph, rng);
+    this.nextPoopAt = DOG_POOP.spawnEvery * 0.5;
   }
 
   /** In-game clock in minutes since midnight of day 1. */
   get clockMinutes() { return GAME.clockStartHour * 60 + this.time * GAME.clockMinutesPerSecond; }
+  get invulnerable() { return this.time < this.invulnerableUntil; }
 
   steer(d: Dir4) {
     if (this.ending) return;
     if (this.sleeping) { this.wake(true); return; }
+    if (this.drag) { this.player.queued = d; this.player.queuedAge = 0; this.wriggle(); return; }
     this.player.queue(d);
   }
 
@@ -59,7 +87,35 @@ export class Game {
     if (this.ending) return;
     this.time += dt;
 
-    // bars
+    this.updateBars(dt);
+    for (const n of this.npcs) updateNpc(n, dt, this.choose);
+    this.updatePoop();
+
+    // movement
+    if (this.drag) this.followGroup();
+    else this.player.update(dt);
+    if (this.player.exitedVia) {
+      this.end({ kind: this.money > this.startMoney ? 'win' : 'poorer', via: this.player.exitedVia });
+      return;
+    }
+
+    if (!this.sleeping) {
+      this.contacts();
+      this.stepInPoop();
+      if (!this.drag) this.updateNearby();
+    }
+    if (this.offer && this.time > this.offer.until) { this.offer = null; this.toast('You walk on'); }
+
+    if (this.bars.health <= 0) {
+      const empty = (Object.entries(this.emptySince) as [DeathCause, number][]).sort((a, b) => a[1] - b[1]);
+      const cause: DeathCause = this.time - this.lastHitAt < 1 || !empty.length ? 'beaten' : empty[0][0];
+      this.end({ kind: 'death', cause });
+      return;
+    }
+    if (this.money <= 0) this.end({ kind: 'death', cause: 'broke' });
+  }
+
+  private updateBars(dt: number) {
     const k = this.sleeping ? BARS.sleepDrainFactor : 1;
     this.bars.hunger = clamp(this.bars.hunger - BARS.drain.hunger * k * dt);
     this.bars.thirst = clamp(this.bars.thirst - BARS.drain.thirst * k * dt);
@@ -70,8 +126,6 @@ export class Game {
     } else {
       this.bars.energy = clamp(this.bars.energy - BARS.drain.energy * dt);
     }
-
-    // health
     const vitals: BarKey[] = ['hunger', 'thirst', 'energy'];
     let empty = 0;
     for (const v of vitals) {
@@ -80,25 +134,148 @@ export class Game {
     }
     if (empty) this.bars.health = clamp(this.bars.health - BARS.healthLossPerEmptyBar * empty * dt);
     else if (vitals.every((v) => this.bars[v] >= BARS.healthyThreshold)) this.bars.health = clamp(this.bars.health + BARS.healthRegen * dt);
-
-    if (this.bars.health <= 0) {
-      const cause = (Object.entries(this.emptySince) as [DeathCause, number][]).sort((a, b) => a[1] - b[1])[0]?.[0] ?? 'hunger';
-      this.end({ kind: 'death', cause });
-      return;
-    }
-    if (this.money <= 0) { this.end({ kind: 'death', cause: 'broke' }); return; }
-
-    // movement
-    this.player.update(dt);
-    if (this.player.exitedVia) {
-      this.end({ kind: this.money > this.startMoney ? 'win' : 'poorer', via: this.player.exitedVia });
-      return;
-    }
-
-    // places
-    if (!this.sleeping) this.updateNearby();
   }
 
+  // ---------------------------------------------------------------------------
+  // characters
+  private contacts() {
+    const pos = this.player.walker.pos;
+    for (const n of this.npcs) {
+      if (this.time < n.cooldownUntil) continue;
+      if (this.drag?.npc === n) continue;
+      if (npcDistance(n, pos) > n.radius) continue;
+      switch (n.kind) {
+        case 'beggar': {
+          const toll = Math.min(BEGGARS.toll, this.money);
+          this.money -= toll;
+          this.stats.spent += toll;
+          n.cooldownUntil = this.time + NPC.contactCooldown;
+          this.toast(`A beggar holds out a cup. −€${toll}`, 'bad');
+          break;
+        }
+        case 'sexworker':
+          if (this.offer) break;
+          this.offer = { npc: n, until: this.time + SEX_WORKERS.offerWindow };
+          n.cooldownUntil = this.time + SEX_WORKERS.offerWindow + NPC.contactCooldown;
+          break;
+        case 'bad': {
+          if (this.invulnerable) break;
+          const def = BAD_GUYS.sizes[n.size!];
+          this.bars.health = clamp(this.bars.health - def.damage);
+          this.bars.energy = clamp(this.bars.energy - def.energyDrain);
+          this.invulnerableUntil = this.time + BAD_GUYS.invulnerable;
+          this.lastHitAt = this.time;
+          this.stats.hits++;
+          n.cooldownUntil = this.time + NPC.contactCooldown;
+          const who = n.size === 'large' ? 'A huge thug flattens you' : n.size === 'medium' ? 'A thug shoves you hard' : 'A small-time crook elbows you';
+          this.toast(`${who}. −${def.damage} health`, 'bad');
+          break;
+        }
+        case 'tourists':
+          if (this.time < this.dragImmuneUntil) break;
+          n.cooldownUntil = this.time + 1;
+          if (this.rng() < TOURISTS.dragChance || !this.player.walker.reverse()) this.startDrag(n);
+          else { this.player.queued = null; this.toast('A tour group blocks the street'); }
+          break;
+      }
+    }
+  }
+
+  private startDrag(n: Npc) {
+    this.drag = { npc: n, taps: 0, lastEdge: n.walker.edge };
+    this.player.queued = null;
+    this.near = null;
+    this.toast('Swept up by a tour group! Tap to wriggle free', 'bad');
+  }
+
+  private followGroup() {
+    const d = this.drag!, gw = d.npc.walker, w = this.player.walker;
+    if (gw.edge !== d.lastEdge) {
+      // the group just passed an intersection: a queued turn may get you out
+      const node = gw.edge.startNode(gw.dir);
+      const q = this.player.queued;
+      if (q) {
+        const m = matchDirection(this.graph, node, d.lastEdge, DIR_VEC[q]);
+        if (m && m.edge !== gw.edge && m.edge.kind !== 'bridge') {
+          if (this.rng() < TOURISTS.turnEscapeChance) { this.escape(m); return; }
+          this.toast('The crowd won’t let you through');
+        }
+      }
+      d.lastEdge = gw.edge;
+    }
+    w.edge = gw.edge;
+    w.s = gw.s;
+    w.dir = gw.dir;
+  }
+
+  private wriggle() {
+    if (!this.drag) return;
+    if (++this.drag.taps >= TOURISTS.tapsToEscape) this.escape(null);
+  }
+
+  private escape(dep: Departure | null) {
+    this.drag = null;
+    this.dragImmuneUntil = this.time + TOURISTS.escapeImmunity;
+    const w = this.player.walker;
+    if (dep) {
+      w.edge = dep.edge;
+      w.dir = dep.dir;
+      w.s = dep.dir === 1 ? 0 : dep.edge.length;
+      this.player.queued = null;
+    }
+    this.toast('You slip out of the crowd', 'good');
+  }
+
+  get dragProgress() { return this.drag ? this.drag.taps / TOURISTS.tapsToEscape : 0; }
+
+  acceptOffer() {
+    if (!this.offer) return;
+    const { npc } = this.offer;
+    this.offer = null;
+    if (this.money - SEX_WORKERS.price <= 0) { this.toast('You can’t afford it', 'bad'); return; }
+    this.money -= SEX_WORKERS.price;
+    this.stats.spent += SEX_WORKERS.price;
+    this.bars.health = clamp(this.bars.health + SEX_WORKERS.healthBoost);
+    if (npc.infected) this.exposed = true;
+    this.toast(`A pleasant hour. −€${SEX_WORKERS.price}`, 'good');
+  }
+
+  declineOffer() {
+    if (!this.offer) return;
+    this.offer = null;
+    this.toast('You walk on');
+  }
+
+  // ---------------------------------------------------------------------------
+  // dog poop
+  private updatePoop() {
+    this.poops = this.poops.filter((p) => p.expires > this.time);
+    if (this.time < this.nextPoopAt) return;
+    this.nextPoopAt = this.time + DOG_POOP.spawnEvery;
+    if (this.poops.length >= DOG_POOP.maxActive) return;
+    const streets = this.graph.edges.filter((e) => e.kind === 'street');
+    const me = this.player.walker.pos;
+    for (let tries = 0; tries < 30; tries++) {
+      const e = streets[Math.floor(this.rng() * streets.length)];
+      const pos = e.pointAt(e.length * (0.15 + 0.7 * this.rng()));
+      if (dist(pos, me) < DOG_POOP.minDistanceFromPlayer) continue;
+      if (this.places.some((p) => dist(p.pos, pos) < 15)) continue;
+      this.poops.push({ id: this.poopIds++, pos, expires: this.time + DOG_POOP.lifetime });
+      return;
+    }
+  }
+
+  private stepInPoop() {
+    const me = this.player.walker.pos;
+    const hit = this.poops.find((p) => dist(p.pos, me) < DOG_POOP.radius);
+    if (!hit) return;
+    this.poops = this.poops.filter((p) => p !== hit);
+    if (!this.dirty) this.toast('You stepped in it. No restaurant or hotel will let you in until you wash.', 'bad');
+    this.dirty = true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // places
   private updateNearby() {
     const pos = this.player.walker.pos;
     let best: Place | null = null, bd: number = INTERACT.radius;
@@ -107,7 +284,8 @@ export class Game {
       if (d < bd) { bd = d; best = p; }
     }
     if (best) {
-      if (best.kind === 'water' && best.price === 0 && WATER.autoUseWhenFree && !this.refusal(best) && this.bars.thirst < 95) {
+      const freeWater = best.kind === 'water' && best.price === 0 && WATER.autoUseWhenFree;
+      if (freeWater && !this.refusal(best) && (this.dirty || this.bars.thirst < 95)) {
         this.use(best);
         return;
       }
@@ -132,18 +310,20 @@ export class Game {
 
   refusal(p: Place): Refusal {
     if (this.time - p.lastUsed < INTERACT.cooldown) return 'Just been here';
+    if (this.dirty && (p.kind === 'food' || p.kind === 'hostel' || p.kind === 'hotel')) return 'Too dirty';
     const price = this.priceOf(p);
     if (price > 0 && this.money - price <= 0) return 'Not enough money';
-    if (p.kind === 'water' && this.bars.thirst >= 100) return 'Not thirsty';
+    if (p.kind === 'water' && this.bars.thirst >= 100 && !this.dirty) return 'Not thirsty';
     if (p.kind === 'food' && this.bars.hunger >= 100 && this.bars.thirst >= 100) return 'Not hungry';
     if (isSleep(p.kind) && this.bars.energy >= SLEEP.minEnergyToSleep) return 'Not tired';
     return null;
   }
 
-  /** Use the place whose action window is open. */
+  /** The action button / Space: use the place in reach, or wriggle when dragged. */
   act() {
-    if (this.ending || this.sleeping || !this.near) return;
-    if (this.refusal(this.near)) return;
+    if (this.ending || this.sleeping) return;
+    if (this.drag) { this.wriggle(); return; }
+    if (!this.near || this.refusal(this.near)) return;
     this.use(this.near);
   }
 
@@ -154,9 +334,15 @@ export class Game {
     p.lastUsed = this.time;
     const cost = price ? ` −€${price}` : '';
     if (p.kind === 'water') {
-      this.bars.thirst = clamp(this.bars.thirst + p.thirst);
-      this.stats.drinks++;
-      this.toast(`Drank at ${p.name}${cost}`, 'good');
+      if (this.dirty) {
+        this.dirty = false;
+        this.toast(`Washed off at ${p.name}`, 'good');
+      }
+      if (this.bars.thirst < 100) {
+        this.bars.thirst = clamp(this.bars.thirst + p.thirst);
+        this.stats.drinks++;
+        this.toast(`Drank at ${p.name}${cost}`, 'good');
+      }
     } else if (p.kind === 'food') {
       this.bars.hunger = clamp(this.bars.hunger + p.hunger);
       this.bars.thirst = clamp(this.bars.thirst + p.thirst);
@@ -171,6 +357,7 @@ export class Game {
       w.s = p.s;
       if (!w.edge.canTravel(w.dir)) w.dir = w.dir === 1 ? -1 : 1;
       this.player.queued = null;
+      this.offer = null;
       this.stats.nights++;
       this.toast(`Lying down: ${p.name}${cost}`, 'info');
     }
@@ -179,15 +366,28 @@ export class Game {
 
   wake(early: boolean) {
     if (!this.sleeping) return;
+    const kind = this.sleeping.place.kind;
     this.sleeping = null;
     this.player.walker.moving = true;
     this.toast(early ? 'You get up, still yawning' : 'You wake up rested', 'info');
+    if (this.rng() < (SLEEP_THEFT.chance[kind] ?? 0)) {
+      const share = SLEEP_THEFT.shareMin + this.rng() * (SLEEP_THEFT.shareMax - SLEEP_THEFT.shareMin);
+      const lost = Math.floor(this.money * share);
+      if (lost > 0) {
+        this.money -= lost;
+        this.robbed += lost;
+        this.stats.robbed += lost;
+        this.toast(`Your pockets feel lighter. Pickpocketed: −€${lost}`, 'bad');
+      }
+    }
   }
 
   private end(e: Ending) {
     this.ending = e;
     this.sleeping = null;
     this.near = null;
+    this.offer = null;
+    this.drag = null;
   }
 }
 

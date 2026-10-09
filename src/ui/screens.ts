@@ -20,6 +20,7 @@ export function showTitle(onRolled: (money: number) => void, bridge: string) {
     <details class="howto"><summary>How to play</summary>
       <p>Your dot never stops walking. Steer with <b>arrow keys / WASD</b> or <b>swipe</b>: the turn is taken at the next corner where it's possible. Push against your direction to turn round. Small arrows mark one-way streets.</p>
       <p>Food, water and sleep drain all the time. If any of them hits zero, your health drops. Walk past a place and tap its button (or press <b>Space</b>) to use it. Fountains are free and work as you pass.</p>
+      <p>Watch the streets: <b>spiky thugs</b> hurt you (bigger ones hurt more), <b>beggars</b> take a few euros, <b>tour groups</b> block the way and can sweep you along (tap fast to escape), and <b>dog poop</b> gets you turned away from restaurants and hotels until you wash at a fountain. Benches are free but pickpockets work at night.</p>
       <p>The green markers are the bridges out. Leave with more than you arrived with to win.</p>
     </details>`);
   const btn = document.getElementById('roll') as HTMLButtonElement;
@@ -62,6 +63,7 @@ const DEATHS: Record<string, [string, string]> = {
   thirst: ['Dried out', 'An island in the sea, a fountain on every other corner, and still. Fonte Aretusa sends its regards.'],
   energy: ['Collapsed', 'You fell asleep standing up and the limestone won. The pigeons have taken your spot.'],
   broke: ['Broke', 'Your wallet died first. You followed it out of solidarity.'],
+  beaten: ['Beaten', 'You met the wrong man in a very picturesque alley. The tourists photographed the alley.'],
 };
 
 export function showEnding(game: Game, e: Ending, onAgain: () => void) {
@@ -69,6 +71,7 @@ export function showEnding(game: Game, e: Ending, onAgain: () => void) {
   const clock = formatClock(game.clockMinutes);
   const stats = `<p class="stats">Arrived with €${game.startMoney} · left with €${Math.round(game.money)}<br>
     ${game.stats.meals} meals · ${game.stats.drinks} drinks · ${game.stats.nights} naps · €${game.stats.spent} spent<br>
+    ${game.stats.hits} beatings · €${game.stats.robbed} pickpocketed<br>
     ${clock} on the clock</p>`;
   let head: string;
   if (e.kind === 'death') {

@@ -7,6 +7,7 @@ import { bindInput } from './input';
 import { Graph } from './map/graph';
 import mapData from './map/ortigia-map.json';
 import type { MapData } from './map/types';
+import { drawActors } from './render/actors';
 import { MapRenderer } from './render/mapRenderer';
 import { View } from './render/view';
 import { ActionCard } from './ui/actionCard';
@@ -23,7 +24,12 @@ const graph = new Graph(mapData as MapData);
 const view = new View();
 const mapLayer = new MapRenderer(graph);
 const hud = new Hud(hudEl);
-const card = new ActionCard(document.getElementById('action')!, () => game?.act(), () => game?.wake(true));
+const card = new ActionCard(document.getElementById('action')!, {
+  act: () => game?.act(),
+  wake: () => game?.wake(true),
+  accept: () => game?.acceptOffer(),
+  decline: () => game?.declineOffer(),
+});
 const debug = new URLSearchParams(location.search).has('debug');
 const staticPlaces = buildPlaces(graph);
 // ?debug exposes the running game for console poking and screenshot scripts
@@ -56,6 +62,8 @@ bindInput(canvas, (d) => {
 });
 window.addEventListener('keydown', (e) => {
   if (!game || game.ending) return;
+  if (game.offer && (e.key === 'y' || e.key === 'Y')) { game.acceptOffer(); return; }
+  if (game.offer && (e.key === 'n' || e.key === 'N' || e.key === 'Escape')) { game.declineOffer(); return; }
   if (e.key === ' ' || e.key === 'Enter' || e.key === 'e' || e.key === 'E') {
     e.preventDefault();
     if (game.sleeping) game.wake(true);
@@ -102,6 +110,7 @@ function draw() {
 
   if (game) {
     drawNear(game);
+    drawActors(ctx, view, game);
     drawPlayer(game);
   }
   hud.update(game);
@@ -143,9 +152,11 @@ function drawPlayer(g: Game) {
     ctx.fill();
     ctx.globalAlpha = 1;
   }
+  // blink while invulnerable after a hit
+  if (g.invulnerable && Math.floor(g.time * 10) % 2) ctx.globalAlpha = 0.35;
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.beginPath(); ctx.arc(p.x + 1, p.y + 1.5, r + 1, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = g.sleeping ? '#d9d4f0' : PALETTE.player;
+  ctx.fillStyle = g.sleeping ? '#d9d4f0' : g.dirty ? '#d8c3a5' : PALETTE.player;
   ctx.strokeStyle = PALETTE.playerRing;
   ctx.lineWidth = 2.5;
   ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -167,6 +178,7 @@ function drawPlayer(g: Game) {
     ctx.fillStyle = PALETTE.playerRing;
     ctx.beginPath(); ctx.arc(p.x + h.x * r * 0.45, p.y - h.y * r * 0.45, r * 0.32, 0, Math.PI * 2); ctx.fill();
   }
+  ctx.globalAlpha = 1;
 }
 
 let shownToasts = 0;

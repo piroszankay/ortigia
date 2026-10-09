@@ -223,8 +223,8 @@ export const RESTAURANTS = [
 
 /**
  * Sleeping places. comfort = energy restored per second asleep; maxEnergy = how
- * full a night there gets you; safety (0–1) is used by later events (bench
- * pickpockets). The friend's sofa costs `price` until you have made a friend.
+ * full a night there gets you. Theft risk is in SLEEP_THEFT. The friend's sofa
+ * costs `price` until you have made a friend.
  */
 export const SLEEP_PLACES = [
   { kind: 'bench', name: 'Bench on the Foro', at: [37.06135, 15.290692] as LatLon },
@@ -236,12 +236,90 @@ export const SLEEP_PLACES = [
   { kind: 'sofa', name: "Friend's sofa", at: [37.057301, 15.293934] as LatLon },
 ] as const;
 export const SLEEP_KINDS = {
-  bench: { label: 'Bench', price: 0, comfort: 5, maxEnergy: 70, safety: 0.2 },
-  hostel: { label: 'Hostel bunk', price: 18, comfort: 10, maxEnergy: 95, safety: 0.7 },
-  hotel: { label: 'Hotel room', price: 55, comfort: 16, maxEnergy: 100, safety: 1 },
-  sofa: { label: "Friend's sofa", price: 12, friendPrice: 0, comfort: 12, maxEnergy: 100, safety: 0.95 },
+  bench: { label: 'Bench', price: 0, comfort: 5, maxEnergy: 70 },
+  hostel: { label: 'Hostel bunk', price: 18, comfort: 10, maxEnergy: 95 },
+  hotel: { label: 'Hotel room', price: 55, comfort: 16, maxEnergy: 100 },
+  sofa: { label: "Friend's sofa", price: 12, friendPrice: 0, comfort: 12, maxEnergy: 100 },
 };
 export const SLEEP = {
   /** You can only lie down if energy is below this. */
   minEnergyToSleep: 95,
+};
+
+// ---------------------------------------------------------------------------
+// WANDERING CHARACTERS (Milestone 3)
+// Speeds in m/s (player is MOVEMENT.playerSpeed). radius = contact distance (m).
+// All of them obey one-way streets and never cross the bridges.
+// ---------------------------------------------------------------------------
+export const NPC = {
+  /** Characters spawn at least this far from the arrival point (m). */
+  spawnMinDistance: 160,
+  /** At an intersection, chance a wanderer keeps going straight if it can. */
+  straightBias: 0.55,
+  /** After a contact, the same character ignores you for this long (s). */
+  contactCooldown: 4,
+};
+
+export const BEGGARS = { count: 2, speed: 17, radius: 9, toll: 3 };
+
+export const SEX_WORKERS = {
+  count: 2,
+  speed: 19,
+  radius: 9,
+  price: 30,
+  /** Paying restores this much health (a pleasant hour, nothing more said). */
+  healthBoost: 12,
+  /** How long the pay/walk-on choice stays open (s). Ignoring it = walk on. */
+  offerWindow: 4,
+};
+
+/** Bad guys: bigger = more dangerous. Spawn `count` of each size. */
+export const BAD_GUYS = {
+  sizes: {
+    small: { count: 3, speed: 25, radius: 8, radiusPx: 5, damage: 8, energyDrain: 6 },
+    medium: { count: 2, speed: 22, radius: 10, radiusPx: 7, damage: 16, energyDrain: 12 },
+    large: { count: 1, speed: 18, radius: 13, radiusPx: 9.5, damage: 30, energyDrain: 20 },
+  },
+  /** Seconds of invulnerability after being hit. */
+  invulnerable: 2.5,
+};
+
+export const TOURISTS = {
+  groups: 3,
+  /** People per group (drawn as a little trail behind the guide). */
+  size: [4, 7] as [number, number],
+  speed: 13,
+  /** Spacing between people in a group along the street (m). */
+  spacing: 6,
+  radius: 8,
+  /** Chance that bumping into a group drags you along; otherwise you bounce back. */
+  dragChance: 0.45,
+  /** Taps (any steering input or action) needed to wriggle free. */
+  tapsToEscape: 6,
+  /** Chance per intersection that a queued turn gets you out of the crowd. */
+  turnEscapeChance: 0.5,
+  /** After escaping, the groups can't grab you again for this long (s). */
+  escapeImmunity: 3,
+};
+
+export const DOG_POOP = {
+  maxActive: 5,
+  /** Seconds between new spawns. */
+  spawnEvery: 11,
+  /** Seconds before a pile disappears (rain, street sweepers, other shoes). */
+  lifetime: 100,
+  /** Never spawns closer than this to the player (m). */
+  minDistanceFromPlayer: 70,
+  /** Stepping radius (m). */
+  radius: 6,
+};
+
+/**
+ * Pickpockets while you sleep. Chance per night by sleep kind, and the share
+ * of your money taken (random between min and max).
+ */
+export const SLEEP_THEFT = {
+  chance: { bench: 0.4, hostel: 0.06, hotel: 0, sofa: 0 } as Record<string, number>,
+  shareMin: 0.2,
+  shareMax: 0.45,
 };
