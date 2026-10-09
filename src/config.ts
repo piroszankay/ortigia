@@ -84,6 +84,7 @@ export const RENDER = {
   /** Show street names (only for streets at least this long, m). 0 = never. */
   streetLabelMinLength: 0,
   playerRadiusPx: 6,
+  placeRadiusPx: 7.5,
   /** Seconds a queued-turn hint arrow stays visible after input. */
   queuedHintFade: 0.4,
 };
@@ -149,4 +150,98 @@ export const SIM = {
 export const GAME = {
   /** The traveller arrives over this bridge (must match a MAP_BUILD.bridges name). */
   arrivalBridge: 'Ponte Umbertino',
+  /** In-game clock: starting hour and game minutes per real second. */
+  clockStartHour: 9,
+  clockMinutesPerSecond: 2,
+};
+
+// ---------------------------------------------------------------------------
+// STARTING MONEY — two dice. Start money = base + (die1 + die2) × perPip (€).
+// ---------------------------------------------------------------------------
+export const DICE = {
+  count: 2,
+  base: 20,
+  perPip: 10,
+  /** Tumbling animation length (s). */
+  rollTime: 1.4,
+};
+
+// ---------------------------------------------------------------------------
+// THE FOUR BARS (0–100)
+// ---------------------------------------------------------------------------
+export const BARS = {
+  start: { hunger: 80, thirst: 80, energy: 85, health: 100 },
+  /** Points lost per second while awake. Full → empty in 100/rate seconds. */
+  drain: { hunger: 0.55, thirst: 0.8, energy: 0.42 },
+  /** Drain multiplier for hunger/thirst while asleep. */
+  sleepDrainFactor: 0.4,
+  /** Health lost per second for EACH of hunger/thirst/energy sitting at zero. */
+  healthLossPerEmptyBar: 1.6,
+  /** Health regained per second when hunger, thirst and energy are all at or above healthyThreshold. */
+  healthRegen: 0.35,
+  healthyThreshold: 35,
+  /** Bars at or below this blink in the HUD. */
+  warnAt: 20,
+};
+
+// ---------------------------------------------------------------------------
+// LOCATIONS — fixed places. `at` is lat/lon, snapped to the nearest street.
+// price in €; hunger/thirst = points added instantly (capped at 100).
+// ---------------------------------------------------------------------------
+export const INTERACT = {
+  /** Action window opens when the dot is this close to a place (m). */
+  radius: 42,
+  /** …and stays open this long after you walk out of range (s). */
+  grace: 1.4,
+  /** A place can't be used again until this many seconds have passed. */
+  cooldown: 8,
+};
+
+export const WATER_POINTS = [
+  { name: 'Fontana di Diana', at: [37.06171, 15.293225] as LatLon },
+  { name: 'Fonte Aretusa', at: [37.05937, 15.291649] as LatLon },
+  { name: 'Fontanella del Foro', at: [37.062699, 15.290242] as LatLon },
+  { name: 'Fontanella di Levante', at: [37.060585, 15.296636] as LatLon },
+  { name: 'Fontanella della Giudecca', at: [37.057885, 15.294835] as LatLon },
+  { name: 'Fontanella del Castello', at: [37.055366, 15.29354] as LatLon },
+];
+export const WATER = {
+  price: 0,
+  thirst: 45,
+  /** Free fountains are used automatically when you walk past (if thirst < 100). */
+  autoUseWhenFree: true,
+};
+
+export const RESTAURANTS = [
+  { name: 'Bar Apollo', at: [37.063536, 15.293371] as LatLon, price: 6, hunger: 25, thirst: 35, menu: 'granita & brioche' },
+  { name: 'Trattoria della Giudecca', at: [37.05946, 15.29461] as LatLon, price: 22, hunger: 70, thirst: 40, menu: 'pasta con le sarde' },
+  { name: 'Arancini da Turi', at: [37.061737, 15.292066] as LatLon, price: 5, hunger: 35, thirst: 5, menu: 'two arancini' },
+  { name: 'Caffè del Duomo', at: [37.05991, 15.293146] as LatLon, price: 12, hunger: 30, thirst: 40, menu: 'espresso, cannolo, water' },
+  { name: 'Pescheria Levante', at: [37.057885, 15.296017] as LatLon, price: 18, hunger: 60, thirst: 30, menu: 'fried calamari' },
+  { name: 'Panineria del Mercato', at: [37.063914, 15.292887] as LatLon, price: 9, hunger: 50, thirst: 15, menu: 'market sandwich' },
+];
+
+/**
+ * Sleeping places. comfort = energy restored per second asleep; maxEnergy = how
+ * full a night there gets you; safety (0–1) is used by later events (bench
+ * pickpockets). The friend's sofa costs `price` until you have made a friend.
+ */
+export const SLEEP_PLACES = [
+  { kind: 'bench', name: 'Bench on the Foro', at: [37.06135, 15.290692] as LatLon },
+  { kind: 'bench', name: 'Bench on the Levante', at: [37.062367, 15.296726] as LatLon },
+  { kind: 'bench', name: 'Bench by the Alfeo', at: [37.055366, 15.292088] as LatLon },
+  { kind: 'bench', name: 'Bench at the Darsena', at: [37.064769, 15.291818] as LatLon },
+  { kind: 'hostel', name: 'Ostello Aretusa', at: [37.061026, 15.292212] as LatLon },
+  { kind: 'hotel', name: 'Grand Hotel Ortigia', at: [37.05982, 15.296512] as LatLon },
+  { kind: 'sofa', name: "Friend's sofa", at: [37.057301, 15.293934] as LatLon },
+] as const;
+export const SLEEP_KINDS = {
+  bench: { label: 'Bench', price: 0, comfort: 5, maxEnergy: 70, safety: 0.2 },
+  hostel: { label: 'Hostel bunk', price: 18, comfort: 10, maxEnergy: 95, safety: 0.7 },
+  hotel: { label: 'Hotel room', price: 55, comfort: 16, maxEnergy: 100, safety: 1 },
+  sofa: { label: "Friend's sofa", price: 12, friendPrice: 0, comfort: 12, maxEnergy: 100, safety: 0.95 },
+};
+export const SLEEP = {
+  /** You can only lie down if energy is below this. */
+  minEnergyToSleep: 95,
 };

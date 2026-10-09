@@ -1,6 +1,8 @@
 import { MAP_DECOR, PALETTE, RENDER } from '../config';
 import { project, pointInPolygon, type Vec } from '../geo';
+import type { Place } from '../game/places';
 import type { Edge, Graph } from '../map/graph';
+import { drawPlaceGlyph } from './glyphs';
 import type { Pt } from '../map/types';
 import { mulberry32 } from '../rng';
 import type { View } from './view';
@@ -18,7 +20,7 @@ export class MapRenderer {
 
   constructor(private graph: Graph) {}
 
-  render(view: View, dpr: number) {
+  render(view: View, dpr: number, places: Place[]) {
     this.dpr = dpr;
     this.canvas.width = Math.round(view.width * dpr);
     this.canvas.height = Math.round(view.height * dpr);
@@ -145,6 +147,12 @@ export class MapRenderer {
       ctx.stroke();
     }
 
+    // ---- places -----------------------------------------------------------
+    for (const pl of places) {
+      const p = view.toScreen(pl.pos);
+      drawPlaceGlyph(ctx, pl.kind, p.x, p.y, RENDER.placeRadiusPx);
+    }
+
     // ---- labels -----------------------------------------------------------
     for (const n of g.exits) {
       const p = view.toScreen(n);
@@ -152,7 +160,7 @@ export class MapRenderer {
     }
     for (const lm of MAP_DECOR.landmarks) {
       const p = view.toScreen(project(lm.at));
-      this.label(lm.name, p.x, p.y + (lm.kind === 'castle' ? 0 : 14), 9.5, PALETTE.label, false);
+      this.label(lm.name, p.x, p.y + (lm.kind === 'castle' ? 0 : lm.kind === 'temple' ? -12 : 14), 9.5, PALETTE.label, false);
     }
     const ml = view.toScreen(project(MAP_DECOR.mainlandLabel.at));
     this.label(MAP_DECOR.mainlandLabel.text, ml.x, ml.y, 13, 'rgba(90,70,45,0.7)', false, '600', 4);

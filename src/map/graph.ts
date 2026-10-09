@@ -95,4 +95,21 @@ export class Graph {
   }
 
   node(id: number) { return this.nodes[id]; }
+
+  /** Nearest point on any street (bridges excluded) to p. */
+  snap(p: Vec): { edge: Edge; s: number; pos: Vec } {
+    let best = { edge: this.edges[0], s: 0, pos: this.edges[0].pts[0] }, bd = Infinity;
+    for (const e of this.edges) {
+      if (e.kind !== 'street') continue;
+      for (let i = 1; i < e.pts.length; i++) {
+        const a = e.pts[i - 1], b = e.pts[i];
+        const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
+        const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / L2));
+        const q = { x: a.x + dx * t, y: a.y + dy * t };
+        const d = Math.hypot(p.x - q.x, p.y - q.y);
+        if (d < bd) { bd = d; best = { edge: e, s: e.cum[i - 1] + t * (e.cum[i] - e.cum[i - 1]), pos: q }; }
+      }
+    }
+    return best;
+  }
 }

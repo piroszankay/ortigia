@@ -10,8 +10,9 @@ export class View {
   width = 0;
   height = 0;
 
-  /** Fit the island (plus bridges) into the screen area below `top` CSS px. */
-  fit(graph: Graph, width: number, height: number, top: number, bottom: number) {
+  /** Fit the island (plus bridges) into the screen minus the given insets (CSS px). */
+  fit(graph: Graph, width: number, height: number, inset: { left: number; top: number; right: number; bottom: number }) {
+    const { left, top, right, bottom } = inset;
     this.width = width;
     this.height = height;
     const xs: number[] = [], ys: number[] = [];
@@ -21,9 +22,9 @@ export class View {
     const minX = Math.min(...xs) - margin, maxX = Math.max(...xs) + margin;
     const minY = Math.min(...ys) - margin, maxY = Math.max(...ys) + margin;
     const pad = RENDER.padding;
-    const availW = width - 2 * pad, availH = height - top - bottom - 2 * pad;
+    const availW = width - left - right - 2 * pad, availH = height - top - bottom - 2 * pad;
     this.scale = Math.min(availW / (maxX - minX), availH / (maxY - minY));
-    this.ox = pad + (availW - (maxX - minX) * this.scale) / 2 - minX * this.scale;
+    this.ox = left + pad + (availW - (maxX - minX) * this.scale) / 2 - minX * this.scale;
     this.oy = top + pad + (availH - (maxY - minY) * this.scale) / 2 + maxY * this.scale;
   }
 

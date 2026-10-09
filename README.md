@@ -8,7 +8,8 @@ cd ortigia
 npm install
 npm run dev        # open the printed URL (also reachable from a phone on the same Wi-Fi)
 npm run build      # static build in dist/
-npm run test:sim   # headless check: graph connectivity + movement rules
+npm run test:sim   # headless check: graph connectivity, movement and survival rules
+npm run build:single  # one self-contained HTML file in dist/
 ```
 
 Every tunable number lives in [`src/config.ts`](src/config.ts).
@@ -33,4 +34,12 @@ instead of the OSM attribution while it is in use. Once the map is rebuilt from 
 
 Map build parameters (merge distances, dead-end length, bridges, bbox) are in `MAP_BUILD` in `src/config.ts`.
 
-Add `?debug` to the URL to show node ids.
+## How it plays (Milestone 2)
+
+- Two dice set your starting money (`DICE` in config).
+- Food, Water and Sleep drain constantly. Each one at zero costs health; health slowly recovers while all three are healthy.
+- Walk past a place to open its action card, then tap the button or press Space/Enter. Free fountains are used automatically.
+- Sleeping stops the dot until energy reaches that bed's cap. Any steering input wakes you early.
+- You die when health or money reaches zero. Reach a bridge to leave: you win if you have more money than you arrived with.
+
+Add `?debug` to the URL to show node ids and expose `window.__game` in the console.

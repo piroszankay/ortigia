@@ -1,74 +1,66 @@
 import './style.css';
 import { GAME, PALETTE, RENDER, SIM } from './config';
-import { DIR_VEC, Player } from './game/player';
+import { Game } from './game/game';
+import { buildPlaces } from './game/places';
+import { DIR_VEC } from './game/player';
 import { bindInput } from './input';
 import { Graph } from './map/graph';
 import mapData from './map/ortigia-map.json';
 import type { MapData } from './map/types';
 import { MapRenderer } from './render/mapRenderer';
 import { View } from './render/view';
-import { showOverlay, hideOverlay } from './ui/overlay';
+import { ActionCard } from './ui/actionCard';
+import { Hud } from './ui/hud';
+import { showEnding, showTitle } from './ui/screens';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
-const hud = document.getElementById('hud')!;
+const hudEl = document.getElementById('hud')!;
+const toastsEl = document.getElementById('toasts')!;
 const attribution = document.getElementById('attribution')!;
 
 const graph = new Graph(mapData as MapData);
 const view = new View();
 const mapLayer = new MapRenderer(graph);
+const hud = new Hud(hudEl);
+const card = new ActionCard(document.getElementById('action')!, () => game?.act(), () => game?.wake(true));
 const debug = new URLSearchParams(location.search).has('debug');
+const staticPlaces = buildPlaces(graph);
+// ?debug exposes the running game for console poking and screenshot scripts
+if (debug) Object.defineProperty(window, '__game', { get: () => game });
 
 attribution.innerHTML = graph.data.source === 'osm'
   ? 'Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'
   : 'Approximate street plan — rebuild with OpenStreetMap data';
 
 // ---------------------------------------------------------------------------
-type Phase = 'title' | 'playing' | 'ended';
-let phase: Phase = 'title';
-let player: Player;
-let elapsed = 0;
+let game: Game | null = null;
 let lastDirAt = -Infinity;
 
-function arrivalNode(): number {
-  const bridge = graph.edges.find((e) => e.kind === 'bridge' && e.name === GAME.arrivalBridge) ?? graph.edges.find((e) => e.kind === 'bridge')!;
-  return graph.node(bridge.a).exit ? bridge.b : bridge.a;
-}
-
-function newGame() {
-  player = new Player(graph, arrivalNode(), Math.random);
-  elapsed = 0;
-  phase = 'playing';
-  hideOverlay();
-}
-
-function endGame(via: string) {
-  phase = 'ended';
-  const t = Math.round(elapsed);
-  showOverlay(`
-    <h1>Arrivederci</h1>
-    <p>You crossed <b>${via}</b> back to the mainland after ${Math.floor(t / 60)}m ${t % 60}s on the island.</p>
-    <p class="small">Milestone 1 — money, hunger and the rest arrive in Milestone 2.</p>
-    <button id="again">Walk in again</button>`);
-  document.getElementById('again')!.onclick = newGame;
-}
+const arrivalBridge = graph.edges.find((e) => e.kind === 'bridge' && e.name === GAME.arrivalBridge) ?? graph.edges.find((e) => e.kind === 'bridge')!;
+const arrivalNode = graph.node(arrivalBridge.a).exit ? arrivalBridge.b : arrivalBridge.a;
 
 function title() {
-  showOverlay(`
-    <h1>Ortigia</h1>
-    <p>A labyrinth of limestone on the sea. Your dot never stops walking.</p>
-    <p class="small">Steer with <b>arrow keys / WASD</b> or <b>swipe</b>. Your turn is taken at the next corner where it's possible. Push against your direction to turn round. One-way streets are marked with small arrows. The green markers are the bridges out.</p>
-    <button id="start">Enter Ortigia</button>`);
-  document.getElementById('start')!.onclick = newGame;
+  game = null;
+  showTitle((money) => {
+    game = new Game(graph, money, arrivalNode, Math.random);
+    shownToasts = 0;
+    toastsEl.innerHTML = '';
+  }, arrivalBridge.name ?? 'the bridge');
 }
 
 bindInput(canvas, (d) => {
-  if (phase !== 'playing') return;
-  player.queue(d);
-  lastDirAt = elapsed;
+  if (!game || game.ending) return;
+  game.steer(d);
+  lastDirAt = game.time;
 });
 window.addEventListener('keydown', (e) => {
-  if ((e.key === 'Enter' || e.key === ' ') && phase !== 'playing') { e.preventDefault(); newGame(); }
+  if (!game || game.ending) return;
+  if (e.key === ' ' || e.key === 'Enter' || e.key === 'e' || e.key === 'E') {
+    e.preventDefault();
+    if (game.sleeping) game.wake(true);
+    else game.act();
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -77,19 +69,25 @@ function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   canvas.width = Math.round(w * dpr);
   canvas.height = Math.round(h * dpr);
-  const hudH = hud.getBoundingClientRect().height;
-  view.fit(graph, w, h, hudH, 14);
-  mapLayer.render(view, dpr);
+  const r = hudEl.getBoundingClientRect();
+  const sidebar = r.height > h * 0.6; // wide screens: HUD is a left column
+  const inset = sidebar ? { left: r.width, top: 0, right: 0, bottom: 14 } : { left: 0, top: r.height, right: 0, bottom: 14 };
+  document.documentElement.style.setProperty('--map-left', `${inset.left}px`);
+  view.fit(graph, w, h, inset);
+  mapLayer.render(view, dpr, staticPlaces);
 }
 window.addEventListener('resize', resize);
 
 function update(dt: number) {
-  if (phase !== 'playing') return;
-  elapsed += dt;
-  player.update(dt);
-  if (player.exitedVia) endGame(player.exitedVia);
+  if (!game || game.ending) return;
+  game.update(dt);
+  if (game.ending) {
+    const g = game;
+    setTimeout(() => showEnding(g, g.ending!, title), 600);
+  }
 }
 
+// ---------------------------------------------------------------------------
 function draw() {
   const dpr = canvas.width / view.width;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -102,16 +100,38 @@ function draw() {
     for (const n of graph.nodes) { const p = view.toScreen(n); ctx.fillText(String(n.id), p.x + 3, p.y - 3); }
   }
 
-  if (phase === 'title' || !player) { drawHud(); return; }
-  const w = player.walker;
+  if (game) {
+    drawNear(game);
+    drawPlayer(game);
+  }
+  hud.update(game);
+  card.update(game);
+  drawToasts();
+}
+
+function drawNear(g: Game) {
+  const p = g.near ?? g.sleeping?.place;
+  if (!p) return;
+  const s = view.toScreen(p.pos);
+  const pulse = (Math.sin(g.time * 6) + 1) / 2;
+  ctx.strokeStyle = `rgba(255,255,255,${0.5 + 0.4 * pulse})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(s.x, s.y, RENDER.placeRadiusPx + 3 + pulse * 2.5, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawPlayer(g: Game) {
+  const w = g.player.walker;
   const p = view.toScreen(w.pos);
   const h = w.heading;
   const r = RENDER.playerRadiusPx;
 
   // queued-turn hint: a small arrow beside the dot
-  if (player.queued) {
-    const v = DIR_VEC[player.queued];
-    const fade = Math.min(1, (elapsed - lastDirAt) / RENDER.queuedHintFade);
+  const q = g.player.queued;
+  if (q) {
+    const v = DIR_VEC[q];
+    const fade = Math.min(1, (g.time - lastDirAt) / RENDER.queuedHintFade);
     ctx.globalAlpha = 0.55 + 0.45 * (1 - fade);
     const ax = p.x + v.x * (r + 9), ay = p.y - v.y * (r + 9);
     ctx.fillStyle = PALETTE.playerRing;
@@ -123,27 +143,48 @@ function draw() {
     ctx.fill();
     ctx.globalAlpha = 1;
   }
-  // the traveller
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.beginPath(); ctx.arc(p.x + 1, p.y + 1.5, r + 1, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = PALETTE.player;
+  ctx.fillStyle = g.sleeping ? '#d9d4f0' : PALETTE.player;
   ctx.strokeStyle = PALETTE.playerRing;
   ctx.lineWidth = 2.5;
   ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = PALETTE.playerRing;
-  ctx.beginPath(); ctx.arc(p.x + h.x * r * 0.45, p.y - h.y * r * 0.45, r * 0.32, 0, Math.PI * 2); ctx.fill();
-
-  drawHud();
+  if (g.sleeping) {
+    // drifting z's
+    ctx.font = 'italic bold 11px Georgia, serif';
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(22,50,92,0.8)';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 3; i++) {
+      const t = (g.time * 0.6 + i / 3) % 1;
+      ctx.globalAlpha = 1 - t;
+      const zx = p.x + 6 + t * 10 + i * 2, zy = p.y - 8 - t * 18;
+      ctx.strokeText('z', zx, zy);
+      ctx.fillText('z', zx, zy);
+    }
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.fillStyle = PALETTE.playerRing;
+    ctx.beginPath(); ctx.arc(p.x + h.x * r * 0.45, p.y - h.y * r * 0.45, r * 0.32, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
-let hudCache = '';
-function drawHud() {
-  const t = Math.floor(elapsed);
-  const street = phase === 'playing' ? player.walker.edge.name ?? '' : '';
-  const html = `<span class="title">Ortigia</span><span class="spacer"></span><span class="hint">${street}</span><span>${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}</span>`;
-  if (html !== hudCache) { hud.innerHTML = html; hudCache = html; }
+let shownToasts = 0;
+function drawToasts() {
+  if (!game) return;
+  while (shownToasts < game.toasts.length) {
+    const t = game.toasts[shownToasts++];
+    const el = document.createElement('div');
+    el.className = `toast ${t.tone}`;
+    el.textContent = t.text;
+    toastsEl.appendChild(el);
+    setTimeout(() => el.classList.add('out'), 2200);
+    setTimeout(() => el.remove(), 2700);
+    while (toastsEl.children.length > 3) toastsEl.firstChild!.remove();
+  }
 }
 
+// ---------------------------------------------------------------------------
 let last = performance.now();
 let acc = 0;
 function frame(now: number) {
@@ -154,7 +195,7 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
-drawHud();
+hud.update(null);
 resize();
 title();
 requestAnimationFrame(frame);

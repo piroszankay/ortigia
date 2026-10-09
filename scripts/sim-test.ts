@@ -52,3 +52,43 @@ for (let seed = 1; seed <= 40; seed++) {
 }
 console.log(`ok: ${exits}/40 random walks reached an exit within 10 min; ${visited.size}/${graph.edges.length} streets visited`);
 if (failures) process.exit(1);
+
+// 3. survival rules
+import { Game } from '../src/game/game';
+import { SLEEP_KINDS } from '../src/config';
+{
+  const start = graph.edges.find((e) => e.kind === 'bridge')!;
+  const startNode = graph.node(start.a).exit ? start.b : start.a;
+  const mk = (money: number, seed = 7) => new Game(graph, money, startNode, mulberry32(seed));
+
+  // eating
+  let g = mk(80);
+  const food = g.places.find((p) => p.kind === 'food')!;
+  g.bars.hunger = 10;
+  g.near = food; g.act();
+  if (g.money !== 80 - food.price || g.bars.hunger !== 10 + food.hunger) fail('eating did not charge / feed');
+  // can't spend your last euro
+  g = mk(food.price);
+  g.bars.hunger = 10; g.near = food;
+  if (!g.refusal(food)) fail('should refuse when the meal would take money to 0');
+  // sleeping: dot stops, energy fills to cap, then you wake
+  g = mk(200);
+  const hotel = g.places.find((p) => p.kind === 'hotel')!;
+  g.bars.energy = 20; g.near = hotel; g.act();
+  if (!g.sleeping || g.player.walker.moving) fail('hotel did not put you to sleep');
+  const before = g.player.walker.pos;
+  let after = before;
+  for (let i = 0; i < 60 * 30 && g.sleeping; i++) { after = g.player.walker.pos; g.update(step); }
+  if (g.sleeping || Math.abs(g.bars.energy - SLEEP_KINDS.hotel.maxEnergy) > 1e-6) fail(`did not wake at full energy (${g.bars.energy})`);
+  if (before.x !== after.x || before.y !== after.y) fail('moved while asleep');
+  // neglect kills: no input for a long time
+  const causes: Record<string, number> = {};
+  for (let seed = 1; seed <= 20; seed++) {
+    g = mk(60, seed);
+    for (let i = 0; i < 60 * 60 * 30 && !g.ending; i++) g.update(step);
+    const k = g.ending ? (g.ending.kind === 'death' ? g.ending.cause : g.ending.kind) : 'alive';
+    causes[k] = (causes[k] ?? 0) + 1;
+  }
+  console.log('ok: survival rules; hands-off outcomes over 20 runs:', JSON.stringify(causes));
+}
+if (failures) process.exit(1);
