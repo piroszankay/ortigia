@@ -1,4 +1,4 @@
-import { MEDICINE, SEX_WORKERS, SLEEP_KINDS, SLEEP_THEFT } from '../config';
+import { MIKATU, MEDICINE, SEX_WORKERS, SLEEP_KINDS, SLEEP_THEFT } from '../config';
 import type { Game } from '../game/game';
 import { isSleep, type Place } from '../game/places';
 import { drawHeart, drawTouristIcon } from '../render/actors';
@@ -91,6 +91,7 @@ export class ActionCard {
 
 function verb(p: Place, price: number, game: Game) {
   const cost = price > 0 ? ` · €${price}` : '';
+  if (p.kind === 'haven') return `Unwind${cost}`;
   if (p.kind === 'pharmacy') return `${game.sick ? 'Buy medicine' : 'Buy tonic'}${cost}`;
   if (p.kind === 'water') return `Drink${cost}`;
   if (p.kind === 'food') return `Eat${cost}`;
@@ -98,6 +99,7 @@ function verb(p: Place, price: number, game: Game) {
 }
 
 function describe(p: Place, game: Game) {
+  if (p.kind === 'haven') return `Food, drink, rest & friends · all to 100, health to ${MIKATU.healthFloor}`;
   if (p.kind === 'pharmacy') {
     if (!game.sick) return `Tonic · +${MEDICINE.tonicHealth} health`;
     return `Cures ${[game.poisoned && 'food poisoning', game.infected && 'infection'].filter(Boolean).join(' & ')}`;

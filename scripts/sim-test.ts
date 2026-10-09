@@ -55,7 +55,7 @@ if (failures) process.exit(1);
 
 // 3. survival rules
 import { Game } from '../src/game/game';
-import { BAD_GUYS, BEGGARS, ILLNESS, MEDICINE, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
+import { BAD_GUYS, BEGGARS, ILLNESS, MEDICINE, MIKATU, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
 {
   const start = graph.edges.find((e) => e.kind === 'bridge')!;
   const startNode = graph.node(start.a).exit ? start.b : start.a;
@@ -184,5 +184,17 @@ import { BAD_GUYS, BEGGARS, ILLNESS, MEDICINE, SEX_WORKERS, SLEEP_KINDS, TOURIST
   for (let i = 0; i < 60 * 600 && !g.ending; i++) { g.bars.hunger = g.bars.thirst = 100; g.bars.energy = 100; g.update(step); }
   if (g.ending?.kind !== 'death' || g.ending.cause !== 'poisoning') fail(`untreated poisoning ending: ${JSON.stringify(g.ending)}`);
   console.log('ok: health events');
+
+  // Mikatu: everything to 100, health up to the floor (never down), €12
+  g = mk(100); quiet(g);
+  const mikatu = g.places.find((p) => p.kind === 'haven')!;
+  g.bars = { hunger: 10, thirst: 5, energy: 20, health: 30 };
+  g.near = mikatu; g.act();
+  if (g.money !== 100 - MIKATU.price || g.bars.hunger !== 100 || g.bars.thirst !== 100 || g.bars.energy !== 100 || g.bars.health !== MIKATU.healthFloor)
+    fail(`Mikatu wrong: ${JSON.stringify(g.bars)} €${g.money}`);
+  g = mk(100); quiet(g); g.bars.health = 80; g.bars.hunger = 10;
+  g.near = mikatu; g.act();
+  if (g.bars.health < 80) fail('Mikatu lowered health');
+  console.log('ok: Mikatu');
 }
 if (failures) process.exit(1);

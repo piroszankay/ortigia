@@ -219,6 +219,7 @@ export const RESTAURANTS = [
   { name: 'Caffè del Duomo', at: [37.05991, 15.293146] as LatLon, price: 12, hunger: 30, thirst: 40, menu: 'espresso, cannolo, water' },
   { name: 'Pescheria Levante', at: [37.057885, 15.296017] as LatLon, price: 18, hunger: 60, thirst: 30, menu: 'fried calamari', fishRisk: 0.16 },
   { name: 'Panineria del Mercato', at: [37.063914, 15.292887] as LatLon, price: 9, hunger: 50, thirst: 15, menu: 'market sandwich' },
+  { name: 'Osteria della Marina', at: [37.055051, 15.294959] as LatLon, price: 9, hunger: 45, thirst: 25, menu: 'pasta alla norma' },
 ];
 
 /**
@@ -229,7 +230,6 @@ export const RESTAURANTS = [
 export const SLEEP_PLACES = [
   { kind: 'bench', name: 'Bench on the Foro', at: [37.06135, 15.290692] as LatLon },
   { kind: 'bench', name: 'Bench on the Levante', at: [37.062367, 15.296726] as LatLon },
-  { kind: 'bench', name: 'Bench by the Alfeo', at: [37.055366, 15.292088] as LatLon },
   { kind: 'bench', name: 'Bench at the Darsena', at: [37.064769, 15.291818] as LatLon },
   { kind: 'hostel', name: 'Ostello Aretusa', at: [37.061026, 15.292212] as LatLon },
   { kind: 'hotel', name: 'Grand Hotel Ortigia', at: [37.05982, 15.296512] as LatLon },
@@ -336,6 +336,18 @@ export const ILLNESS = {
   infectionIncubation: 25,
   /** Health lost per second while infected (after incubation). */
   infectionDrain: 0.45,
+};
+
+/**
+ * Mikatu: eat, drink, rest and spend time with friends. One visit fills
+ * food, water and sleep to 100 and brings health back up to healthFloor
+ * (it never lowers health, and it does not cure illness).
+ */
+export const MIKATU = {
+  name: 'Mikatu',
+  at: [37.055366, 15.292088] as LatLon,
+  price: 12,
+  healthFloor: 50,
 };
 
 export const PHARMACIES = [

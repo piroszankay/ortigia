@@ -1,4 +1,5 @@
 import {
+  MIKATU,
   BAD_GUYS, BARS, BEGGARS, DOG_POOP, GAME, ILLNESS, INTERACT, MEDICINE, NPC, SEX_WORKERS, SLEEP, SLEEP_KINDS, SLEEP_THEFT,
   TOURISTS, WATER,
 } from '../config';
@@ -342,6 +343,8 @@ export class Game {
     if (p.kind === 'water' && this.bars.thirst >= 100 && !this.dirty) return 'Not thirsty';
     if (p.kind === 'food' && this.bars.hunger >= 100 && this.bars.thirst >= 100) return 'Not hungry';
     if (p.kind === 'pharmacy' && !this.sick && this.bars.health >= 100) return 'Feeling fine';
+    if (p.kind === 'haven' && this.bars.hunger >= 100 && this.bars.thirst >= 100 && this.bars.energy >= 100
+      && this.bars.health >= MIKATU.healthFloor) return 'All good already';
     if (isSleep(p.kind) && this.bars.energy >= SLEEP.minEnergyToSleep) return 'Not tired';
     return null;
   }
@@ -379,6 +382,11 @@ export class Game {
         this.poisoned = true;
         this.toast('Your stomach turns. That fish was not fresh. Find a pharmacy.', 'bad');
       }
+    } else if (p.kind === 'haven') {
+      this.bars.hunger = this.bars.thirst = this.bars.energy = 100;
+      this.bars.health = Math.max(this.bars.health, MIKATU.healthFloor);
+      this.stats.meals++;
+      this.toast(`An evening with friends at ${p.name}${cost}. Fed, rested, restored.`, 'good');
     } else if (p.kind === 'pharmacy') {
       if (this.sick) {
         const what = [this.poisoned && 'food poisoning', this.infected && 'infection'].filter(Boolean).join(' and ');

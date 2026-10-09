@@ -58,4 +58,8 @@ Map build parameters (merge distances, dead-end length, bridges, bbox) are in `M
 - Paying the hidden **infected** sex worker leads, after an incubation period, to a slow health drain until you buy medicine.
 - **Pharmacies** (green cross) sell one medicine that cures everything you have. Its price is the sum of the cures you need. When you're well they sell a tonic for a little health.
 
+## Mikatu
+
+Mikatu (teal sun, west waterfront in the south) is a place to eat, drink, rest and spend time with friends. One visit costs €12. It fills food, water and sleep to 100 and brings health back up to 50 (it never lowers it). It does not cure illness. Tune it in `MIKATU` in config.
+
 Add `?debug` to the URL to show node ids and expose `window.__game` in the console.

@@ -8,6 +8,7 @@ export const PLACE_COLORS: Record<PlaceKind, string> = {
   hotel: '#b8902a',
   sofa: '#c0577a',
   pharmacy: '#1f8f4e',
+  haven: '#16a3a0',
 };
 
 /** A round badge with a simple white symbol, centred on (x, y), radius r (CSS px). */
@@ -70,6 +71,17 @@ export function drawPlaceGlyph(ctx: CanvasRenderingContext2D, kind: PlaceKind, x
       ctx.fillRect(x - 1.4 * u, y - 4.2 * u, 2.8 * u, 8.4 * u);
       ctx.fillRect(x - 4.2 * u, y - 1.4 * u, 8.4 * u, 2.8 * u);
       break;
+    case 'haven': { // a warm sun: all-inclusive
+      ctx.beginPath(); ctx.arc(x, y, 2.2 * u, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (i * Math.PI) / 4;
+        ctx.moveTo(x + Math.cos(a) * 3.3 * u, y + Math.sin(a) * 3.3 * u);
+        ctx.lineTo(x + Math.cos(a) * 4.6 * u, y + Math.sin(a) * 4.6 * u);
+      }
+      ctx.stroke();
+      break;
+    }
     case 'sofa':
       ctx.moveTo(x - 4.2 * u, y - 0.5 * u); ctx.lineTo(x - 4.2 * u, y + 3 * u);
       ctx.moveTo(x + 4.2 * u, y - 0.5 * u); ctx.lineTo(x + 4.2 * u, y + 3 * u);
