@@ -1,0 +1,22 @@
+{
+  "name": "ortigia",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "map:approx": "tsx scripts/make-approx-data.ts",
+    "map:fetch": "tsx scripts/fetch-osm.ts",
+    "map:build": "tsx scripts/build-map.ts",
+    "test:sim": "tsx scripts/sim-test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.4"
+  }
+}
