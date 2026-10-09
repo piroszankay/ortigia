@@ -11,6 +11,8 @@ export class Hud {
   private fills = new Map<BarKey, HTMLElement>();
   private bars = new Map<BarKey, HTMLElement>();
   private status: HTMLElement;
+  private bag: HTMLElement;
+  private lastBag = '';
   private news: HTMLElement;
   private last = '';
 
@@ -24,12 +26,13 @@ export class Hud {
       <div class="bars">${BAR_LABELS.map(([k, l]) => `
         <div class="bar bar-${k}"><span class="lbl">${l}</span><div class="track"><div class="fill"></div></div></div>`).join('')}
       </div>
-      <div class="status"></div>
-      <div class="news" aria-live="polite"></div>`;
+      <div class="bag"><span class="lbl">Bag</span><span class="bag-items"></span></div>
+      <div class="status-row"><div class="status"></div><div class="news" aria-live="polite"></div></div>`;
     this.money = el.querySelector('.money-now')!;
     this.start = el.querySelector('.money-start')!;
     this.clock = el.querySelector('.clock')!;
     this.status = el.querySelector('.status')!;
+    this.bag = el.querySelector('.bag-items')!;
     this.news = el.querySelector('.news')!;
     for (const [k] of BAR_LABELS) {
       const bar = el.querySelector<HTMLElement>(`.bar-${k}`)!;
@@ -61,6 +64,9 @@ export class Hud {
       this.fills.get(k)!.style.transform = `scaleX(${Math.max(0, v) / 100})`;
       this.bars.get(k)!.classList.toggle('warn', v <= BARS.warnAt);
     }
+    // the bag: every item with what you paid for it
+    const bag = game.inventory.map((o) => `<span><span class="full">${o.item.name}</span><span class="short">${o.item.short}</span> <b>€${o.paid}</b></span>`).join('<i> · </i>') || '<span class="empty">empty</span>';
+    if (bag !== this.lastBag) { this.bag.innerHTML = bag; this.lastBag = bag; }
     const m = Math.round(game.money);
     const key = `${m}|${Math.floor(game.clockMinutes)}|${game.sleeping ? 1 : 0}|${game.dirty ? 1 : 0}|${game.robbed}|${game.drag ? 1 : 0}|${game.poisoned ? 1 : 0}|${game.infected ? 1 : 0}|${game.criminal ? 1 : 0}`;
     if (key === this.last) return;

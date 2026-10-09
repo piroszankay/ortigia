@@ -64,7 +64,7 @@ Map build parameters (merge distances, dead-end length, bridges, bbox) are in `M
 - **Pickpocketing**: next to a tour group a *Pickpocket* button appears (P on a keyboard). It steals a random amount and makes you a **criminal**.
 - **Police** (3) patrol. As a criminal you must never be on the same street segment as an officer; their segments glow red while you're wanted. Getting caught costs 60% of your money by default; set `POLICE.caughtGameOver` to make it game over. If you're not a criminal and were robbed in your sleep, touching an officer recovers half the stolen money.
 - **Street cats** (5, random spots): feeding one for €2 clears your criminal record.
-- **Market**: every 60 s an item is for sale and someone wants an item, both for 10 s (keys 1 / 2). There are 14 Ortigia items, priced randomly around their base value. Your bag is shown with the market.
+- **Market**: every 60 s an item is for sale and someone wants an item, both for 10 s (keys 1 / 2). There are 14 Ortigia items, priced randomly around their base value. Your bag is shown in the HUD under the bars, with what you paid for each item.
 
 ## Mikatu
 

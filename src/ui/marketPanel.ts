@@ -16,10 +16,9 @@ export class MarketPanel {
     if (!game || game.ending) { this.el.hidden = true; this.key = ''; return; }
     const m = game.market;
     const open = m.open && game.time <= m.openUntil;
-    const bag = game.inventory.map((o) => o.item.name);
-    if (!open && !bag.length) { this.el.hidden = true; this.key = ''; return; }
+    if (!open) { this.el.hidden = true; this.key = ''; return; }
 
-    const key = `${open}|${m.offer?.item.id}|${m.offer?.price}|${m.demand?.item.id}|${m.demand?.price}|${bag.join(',')}`;
+    const key = `${m.offer?.item.id}|${m.offer?.price}|${m.demand?.item.id}|${m.demand?.price}`;
     if (key !== this.key) {
       this.key = key;
       const deals = open && m.offer && m.demand ? `
@@ -29,8 +28,7 @@ export class MarketPanel {
           <button class="mk-deal sell" type="button"><span class="mk-lbl">Wanted</span><b>${m.demand.item.name}</b><span class="mk-price"></span></button>
         </div>
         <div class="mk-bar"></div>` : '';
-      const bagHtml = bag.length ? `<div class="mk-bag"><span class="mk-lbl">Bag</span> ${bag.join(' · ')}</div>` : '';
-      this.el.innerHTML = deals + bagHtml;
+      this.el.innerHTML = deals;
       this.buyBtn = this.el.querySelector('.buy');
       this.sellBtn = this.el.querySelector('.sell');
       this.bar = this.el.querySelector('.mk-bar');

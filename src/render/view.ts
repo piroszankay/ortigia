@@ -25,7 +25,8 @@ export class View {
     const availW = width - left - right - 2 * pad, availH = height - top - bottom - 2 * pad;
     this.scale = Math.min(availW / (maxX - minX), availH / (maxY - minY));
     this.ox = left + pad + (availW - (maxX - minX) * this.scale) / 2 - minX * this.scale;
-    this.oy = top + pad + (availH - (maxY - minY) * this.scale) / 2 + maxY * this.scale;
+    // top-aligned: spare height on tall phones goes to the bottom, behind the cards
+    this.oy = top + pad + maxY * this.scale;
   }
 
   toScreen(p: Vec): Vec { return { x: this.ox + p.x * this.scale, y: this.oy - p.y * this.scale }; }

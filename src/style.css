@@ -217,3 +217,31 @@ html, body {
   .news .msg { white-space: normal; }
   .news .msg:not(:first-child) { display: block; opacity: 0.55; }
 }
+
+/* ---- bag: in the HUD under the bars ------------------------------------ */
+.bag { display: flex; align-items: baseline; gap: 8px; height: 17px; font-size: 12px; line-height: 17px; min-width: 0; }
+.bag .lbl { font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); flex: none; }
+.bag-items { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.bag-items b { color: var(--muted); font-weight: 600; }
+.bag-items i { font-style: normal; color: var(--muted); }
+.bag-items .empty { color: var(--muted); font-style: italic; }
+#hud.idle .bag { visibility: hidden; }
+@media (min-width: 820px) and (min-aspect-ratio: 5/4) {
+  .bag { height: auto; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.4; }
+  .bag-items { white-space: normal; }
+}
+.bag-items .full { display: none; }
+@media (min-width: 820px) and (min-aspect-ratio: 5/4) {
+  .bag-items .full { display: inline; }
+  .bag-items .short { display: none; }
+  .bag-items { display: flex; flex-direction: column; }
+  .bag-items i { display: none; }
+}
+
+/* phones: chips and the latest message share one row */
+.status-row { display: flex; align-items: center; gap: 8px; min-height: 19px; min-width: 0; }
+.status-row .status { flex: none; min-height: 0; }
+.status-row .news { flex: 1; min-width: 0; }
+@media (min-width: 820px) and (min-aspect-ratio: 5/4) {
+  .status-row { flex-direction: column; align-items: stretch; gap: 10px; }
+}
