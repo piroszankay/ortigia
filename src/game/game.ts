@@ -18,7 +18,7 @@ export type Ending =
   | { kind: 'arrested' };
 
 /** Sound cues for the UI to play. */
-export type Sfx = 'eat' | 'drink' | 'coin' | 'spend' | 'hit' | 'bad' | 'fish' | 'cast' | 'market' | 'party' | 'police' | 'sleep' | 'cure' | 'squelch' | 'friend';
+export type Sfx = 'meow' | 'eat' | 'drink' | 'coin' | 'spend' | 'hit' | 'bad' | 'fish' | 'cast' | 'market' | 'party' | 'police' | 'sleep' | 'cure' | 'squelch' | 'friend';
 
 export interface Toast { text: string; tone: 'good' | 'bad' | 'info'; at: number }
 export interface Poop { id: number; pos: Vec; expires: number }
@@ -641,6 +641,7 @@ export class Game {
       const was = this.criminal;
       this.criminal = false;
       this.toast(was ? `You feed the cat${cost}. It purrs; the city forgives you. Record clean.` : `You feed the cat${cost}. It purrs.`, 'good');
+      this.play('meow');
     } else if (p.kind === 'fishing') {
       this.settleAt(p);
       this.fishing = { place: p, biteAt: this.time + FISHING.waitMin + this.rng() * (FISHING.waitMax - FISHING.waitMin) };

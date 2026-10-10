@@ -60,7 +60,7 @@ Map build parameters (merge distances, dead-end length, bridges, bbox) are in `M
 
 ## Economy (Milestone 5)
 
-- **Fishing** at two waterfront spots. The dot stops, a fish bites after a few seconds, and it sells at once for a price that scales with its weight. Steering gives up. Each spot needs a rest afterwards.
+- **Fishing** at four waterfront spots (two north, two south). The dot stops, a fish bites after a few seconds, and it sells at once for a price that scales with its weight. Steering gives up. Each spot needs a rest afterwards.
 - **Pickpocketing**: next to a tour group a *Pickpocket* button appears (P on a keyboard). It steals a random amount and makes you a **criminal**.
 - **Police** (3) patrol. As a criminal you must never be on the same street segment as an officer; their segments glow red while you're wanted. Getting caught costs 60% of your money by default; set `POLICE.caughtGameOver` to make it game over. If you're not a criminal and were robbed in your sleep, touching an officer recovers half the stolen money.
 - **Street cats** (5, random spots): feeding one for €2 clears your criminal record.

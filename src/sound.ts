@@ -63,10 +63,36 @@ function noise(at: number, len: number, vol = 0.2, freq = 800) {
   src.start(t);
 }
 
+/** A cat's meow: a nasal sawtooth gliding up then down through a vowel-like filter. */
+function meow(at: number) {
+  if (!ac || !master || muted) return;
+  const t = ac.currentTime + at;
+  const o = ac.createOscillator();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(480, t);
+  o.frequency.exponentialRampToValueAtTime(820, t + 0.12);
+  o.frequency.exponentialRampToValueAtTime(560, t + 0.45);
+  const f = ac.createBiquadFilter();
+  f.type = 'bandpass';
+  f.Q.value = 4;
+  f.frequency.setValueAtTime(900, t);              // "mm"
+  f.frequency.linearRampToValueAtTime(1800, t + 0.15); // "ee-ow"
+  f.frequency.linearRampToValueAtTime(1100, t + 0.45);
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.5, t + 0.05);
+  g.gain.setValueAtTime(0.5, t + 0.3);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+  o.connect(f).connect(g).connect(master);
+  o.start(t);
+  o.stop(t + 0.55);
+}
+
 const C5 = 523.25, E5 = 659.25, G5 = 783.99, A4 = 440, C6 = 1046.5;
 
 export function play(s: Sfx | 'dice' | 'start' | 'win' | 'death') {
   switch (s) {
+    case 'meow': meow(0); break;
     case 'eat': tone(330, 0, 0.08, 'triangle', 0.25); tone(440, 0.07, 0.1, 'triangle', 0.25); break;
     case 'drink': tone(600, 0, 0.18, 'sine', 0.25, 1200); break;
     case 'coin': tone(988, 0, 0.07, 'square', 0.12); tone(1319, 0.07, 0.18, 'square', 0.12); break;

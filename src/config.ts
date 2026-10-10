@@ -383,6 +383,8 @@ export const MEDICINE = {
 export const FISHING_SPOTS = [
   { name: 'Foro Italico pier', at: [37.062025, 15.290467] as LatLon },
   { name: 'Levante rocks', at: [37.061305, 15.296715] as LatLon },
+  { name: 'Alfeo steps', at: [37.056626, 15.291852] as LatLon },
+  { name: 'Ionian rocks', at: [37.056626, 15.295567] as LatLon },
 ];
 export const FISHING = {
   /** Seconds before a bite: random between min and max. */
