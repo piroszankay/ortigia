@@ -78,7 +78,7 @@ export function showEnding(game: Game, e: Ending, onAgain: () => void) {
   const stats = `<p class="stats">Arrived with €${game.startMoney} · left with €${Math.round(game.money)}<br>
     ${game.stats.meals} meals · ${game.stats.drinks} drinks · ${game.stats.nights} naps · €${game.stats.spent} spent<br>
     ${game.stats.hits} beatings · €${game.stats.robbed} pickpocketed · ${game.stats.cures} cures<br>
-    ${game.stats.fish} fish (€${game.stats.fishMoney}) · ${game.stats.pickpockets} wallets lifted · ${game.stats.trades} trades · caught ${game.stats.caught}×<br>
+    €${game.stats.jobMoney} from jobs · ${game.stats.fish} fish (€${game.stats.fishMoney}) · ${game.stats.pickpockets} wallets lifted · ${game.stats.trades} trades · caught ${game.stats.caught}×<br>
     ${clock} on the clock</p>`;
   let head: string;
   if (e.kind === 'death') {
@@ -114,6 +114,8 @@ const LEGEND: [Draw, string][] = [
   [place('hostel'), '<b>Hostel</b> · ' + '<b>Hotel</b> · <b>Sofa</b>: beds'],
   [place('fishing'), '<b>Fishing spot</b>: catch & sell'],
   [place('party'), '<b>Party</b>: two drinks, make a friend'],
+  [place('dishes'), '<b>Dishes</b>: €2/s, up to €20'],
+  [place('busk'), '<b>Busking</b>: play for tips'],
   [place('cat'), '<b>Street cat</b>: feed it to clear your record'],
   [(c, x, y) => drawBadGuy(c, x, y, 6, 0), '<b>Thug</b>: hurts; bigger hurts more'],
   [drawBeggar, '<b>Beggar</b>: takes a few euros'],

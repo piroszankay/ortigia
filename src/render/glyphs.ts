@@ -12,6 +12,8 @@ export const PLACE_COLORS: Record<PlaceKind, string> = {
   fishing: '#24557f',
   cat: '#e08a2c',
   party: '#9b3fd1',
+  dishes: '#5f7a8a',
+  busk: '#c2304f',
 };
 
 /** A round badge with a simple white symbol, centred on (x, y), radius r (CSS px). */
@@ -104,6 +106,19 @@ export function drawPlaceGlyph(ctx: CanvasRenderingContext2D, kind: PlaceKind, x
       ctx.beginPath();
       ctx.moveTo(x + 0.4 * u, y + 2.4 * u); ctx.lineTo(x + 0.4 * u, y - 4 * u); ctx.lineTo(x + 3.4 * u, y - 2.6 * u);
       ctx.stroke();
+      break;
+    case 'dishes': // a plate and two bubbles
+      ctx.beginPath(); ctx.arc(x - 0.6 * u, y + 0.8 * u, 3.2 * u, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x - 0.6 * u, y + 0.8 * u, 1.4 * u, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 3.2 * u, y - 3 * u, 1.1 * u, 0, Math.PI * 2); ctx.arc(x + 1.4 * u, y - 4.4 * u, 0.7 * u, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'busk': // a guitar
+      ctx.beginPath(); ctx.arc(x - 1.2 * u, y + 1.6 * u, 2.6 * u, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 0.6 * u, y - 0.4 * u, 1.8 * u, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 1.1 * u;
+      ctx.beginPath(); ctx.moveTo(x + 1 * u, y - 1 * u); ctx.lineTo(x + 4 * u, y - 4.2 * u); ctx.stroke();
+      ctx.fillStyle = PLACE_COLORS.busk;
+      ctx.beginPath(); ctx.arc(x - 0.9 * u, y + 1.2 * u, 0.9 * u, 0, Math.PI * 2); ctx.fill();
       break;
     case 'sofa':
       ctx.moveTo(x - 4.2 * u, y - 0.5 * u); ctx.lineTo(x - 4.2 * u, y + 3 * u);

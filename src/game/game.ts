@@ -1,5 +1,5 @@
 import {
-  BAD_GUYS, BARS, BEGGARS, CATS, DOG_POOP, FISHING, GAME, ILLNESS, INTERACT, MEDICINE, MIKATU, NPC, PARTY, PICKPOCKET, POLICE,
+  BAD_GUYS, BARS, BEGGARS, BUSKING, CATS, DISHWASHING, DOG_POOP, FISHING, GAME, ILLNESS, INTERACT, MEDICINE, MIKATU, NPC, PARTY, PICKPOCKET, POLICE,
   SEX_WORKERS, SLEEP, SLEEP_KINDS, SLEEP_THEFT, TOURISTS, WATER,
 } from '../config';
 import { dist, type Vec } from '../geo';
@@ -18,7 +18,7 @@ export type Ending =
   | { kind: 'arrested' };
 
 /** Sound cues for the UI to play. */
-export type Sfx = 'meow' | 'eat' | 'drink' | 'coin' | 'spend' | 'hit' | 'bad' | 'fish' | 'cast' | 'market' | 'party' | 'police' | 'sleep' | 'cure' | 'squelch' | 'friend';
+export type Sfx = 'clink' | 'meow' | 'eat' | 'drink' | 'coin' | 'spend' | 'hit' | 'bad' | 'fish' | 'cast' | 'market' | 'party' | 'police' | 'sleep' | 'cure' | 'squelch' | 'friend';
 
 export interface Toast { text: string; tone: 'good' | 'bad' | 'info'; at: number }
 export interface Poop { id: number; pos: Vec; expires: number }
@@ -57,6 +57,8 @@ export class Game {
   /** Pickpocketed a tourist: police on your street segment will catch you. */
   criminal = false;
   fishing: { place: Place; biteAt: number } | null = null;
+  /** Working a job (washing dishes or busking): the dot stays put. */
+  working: { place: Place; earned: number; nextAt: number; endAt: number } | null = null;
   inventory: Owned[] = [];
   readonly market: Market;
   /** The party currently on, if any (its place is in `places` while it lasts). */
@@ -80,7 +82,7 @@ export class Game {
   private choose: ReturnType<typeof wander>;
   ending: Ending | null = null;
   toasts: Toast[] = [];
-  stats = { spent: 0, meals: 0, drinks: 0, nights: 0, hits: 0, robbed: 0, cures: 0, fish: 0, fishMoney: 0, pickpockets: 0, caught: 0, trades: 0, parties: 0, friends: 0 };
+  stats = { jobMoney: 0, spent: 0, meals: 0, drinks: 0, nights: 0, hits: 0, robbed: 0, cures: 0, fish: 0, fishMoney: 0, pickpockets: 0, caught: 0, trades: 0, parties: 0, friends: 0 };
 
   constructor(readonly graph: Graph, startMoney: number, startNode: number, private rng: Rng) {
     this.player = new Player(graph, startNode, rng);
@@ -119,6 +121,7 @@ export class Game {
     if (this.ending) return;
     if (this.sleeping) { this.wake(true); return; }
     if (this.fishing) { this.stopFishing(); this.player.queue(d); return; }
+    if (this.working) { this.stopWorking(true); this.player.queue(d); return; }
     if (this.drag) { this.player.queued = d; this.player.queuedAge = 0; this.wriggle(); return; }
     this.player.queue(d);
   }
@@ -140,6 +143,7 @@ export class Game {
     if (this.market.open && !wasOpen) this.play('market');
     this.updateParty();
     if (this.fishing && this.time >= this.fishing.biteAt) this.catchFish();
+    if (this.working) this.updateWork();
     for (const c of this.cats) if (c.lastUsed > 0 && this.time - c.lastUsed > CATS.relocateAfter) this.moveCat(c);
 
     // movement
@@ -155,7 +159,7 @@ export class Game {
     if (!this.sleeping) {
       this.contacts();
       this.stepInPoop();
-      if (!this.drag && !this.fishing) this.updateNearby();
+      if (!this.drag && !this.fishing && !this.working) this.updateNearby();
     }
     if (this.offer && this.time > this.offer.until) { this.offer = null; this.toast('You walk on'); }
 
@@ -412,6 +416,44 @@ export class Game {
     this.player.walker.moving = true;
   }
 
+  private updateWork() {
+    const w = this.working!;
+    while (this.working && this.time >= w.nextAt) {
+      if (w.place.kind === 'dishes') {
+        const pay = Math.min(DISHWASHING.pay, DISHWASHING.max - w.earned);
+        this.money += pay;
+        w.earned += pay;
+        this.stats.jobMoney += pay;
+        this.play('clink');
+        w.nextAt += DISHWASHING.every;
+        if (w.earned >= DISHWASHING.max) this.stopWorking(false);
+      } else {
+        // busking: a tip now and then, more often with tourists around
+        const me = this.player.walker.pos;
+        const crowd = this.npcs.some((n) => n.kind === 'tourists' && npcDistance(n, me) <= BUSKING.crowdRadius);
+        const chance = Math.min(0.95, BUSKING.tipChance * (crowd ? BUSKING.crowdBoost : 1));
+        if (this.rng() < chance) {
+          const tip = BUSKING.tipMin + Math.floor(this.rng() * (BUSKING.tipMax - BUSKING.tipMin + 1));
+          this.money += tip;
+          w.earned += tip;
+          this.stats.jobMoney += tip;
+          this.play('coin');
+        }
+        w.nextAt += 1;
+        if (this.time >= w.endAt) this.stopWorking(false);
+      }
+    }
+  }
+
+  stopWorking(early: boolean) {
+    const w = this.working;
+    if (!w) return;
+    this.working = null;
+    this.player.walker.moving = true;
+    const what = w.place.kind === 'dishes' ? 'Dishes done' : 'Set over';
+    this.toast(`${what}${early ? ' (you left early)' : ''}: +€${w.earned}`, w.earned > 0 ? 'good' : 'info');
+  }
+
   stopFishing() {
     if (!this.fishing) return;
     this.fishing = null;
@@ -561,7 +603,7 @@ export class Game {
 
   refusal(p: Place): Refusal {
     if (p.kind === 'party' && this.party?.attended) return 'Already danced';
-    if (p.kind !== 'fishing' && this.time - p.lastUsed < INTERACT.cooldown) return 'Just been here';
+    if (!['fishing', 'dishes', 'busk'].includes(p.kind) && this.time - p.lastUsed < INTERACT.cooldown) return 'Just been here';
     if (this.dirty && (p.kind === 'food' || p.kind === 'hostel' || p.kind === 'hotel')) return 'Too dirty';
     const price = this.priceOf(p);
     if (price > 0 && this.money - price <= 0) return 'Not enough money';
@@ -572,12 +614,15 @@ export class Game {
       && this.bars.health >= MIKATU.healthFloor) return 'All good already';
     if (isSleep(p.kind) && this.bars.energy >= SLEEP.minEnergyToSleep) return 'Not tired';
     if (p.kind === 'fishing' && this.time - p.lastUsed < FISHING.spotCooldown) return 'Fish need a rest';
+    if (p.kind === 'dishes' && this.time - p.lastUsed < DISHWASHING.cooldown) return 'No dishes right now';
+    if (p.kind === 'busk' && this.time - p.lastUsed < BUSKING.cooldown) return 'The crowd needs a break';
+    if (p.kind === 'dishes' && this.dirty) return 'Too dirty';
     return null;
   }
 
   /** The action button / Space: use the place in reach, or wriggle when dragged. */
   act() {
-    if (this.ending || this.sleeping || this.fishing) return;
+    if (this.ending || this.sleeping || this.fishing || this.working) return;
     if (this.drag) { this.wriggle(); return; }
     if (!this.near || this.refusal(this.near)) return;
     this.use(this.near);
@@ -642,6 +687,13 @@ export class Game {
       this.criminal = false;
       this.toast(was ? `You feed the cat${cost}. It purrs; the city forgives you. Record clean.` : `You feed the cat${cost}. It purrs.`, 'good');
       this.play('meow');
+    } else if (p.kind === 'dishes' || p.kind === 'busk') {
+      this.settleAt(p);
+      const t = this.time;
+      this.working = p.kind === 'dishes'
+        ? { place: p, earned: 0, nextAt: t + DISHWASHING.every, endAt: Infinity }
+        : { place: p, earned: 0, nextAt: t + 1, endAt: t + BUSKING.duration };
+      this.toast(p.kind === 'dishes' ? `Sleeves up: €${DISHWASHING.pay} a second, up to €${DISHWASHING.max}` : 'You start playing. Hat on the ground.', 'info');
     } else if (p.kind === 'fishing') {
       this.settleAt(p);
       this.fishing = { place: p, biteAt: this.time + FISHING.waitMin + this.rng() * (FISHING.waitMax - FISHING.waitMin) };
@@ -694,6 +746,7 @@ export class Game {
     this.offer = null;
     this.drag = null;
     this.fishing = null;
+    this.working = null;
     this.spareDrink = false;
   }
 }

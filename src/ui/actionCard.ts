@@ -1,4 +1,4 @@
-import { MIKATU, MEDICINE, PARTY, SEX_WORKERS, SLEEP_KINDS, SLEEP_THEFT } from '../config';
+import { BUSKING, DISHWASHING, MIKATU, MEDICINE, PARTY, SEX_WORKERS, SLEEP_KINDS, SLEEP_THEFT } from '../config';
 import type { Game } from '../game/game';
 import { isSleep, type Place } from '../game/places';
 import { drawHeart, drawTouristIcon } from '../render/actors';
@@ -10,6 +10,7 @@ export interface CardActions {
   offerDrink: () => void;
   drinkSpare: () => void;
   stopFishing: () => void;
+  stopWorking: () => void;
   wake: () => void;
   accept: () => void;
   decline: () => void;
@@ -44,6 +45,15 @@ export class ActionCard {
     if (game.drag) {
       this.show(`drag:${pick.length}:${target?.id}`, () => iconCanvas((c) => drawTouristIcon(c, 0, 3), 1.15), 'Stuck in a tour group', 'Tap fast, or steer at a corner',
         [{ label: 'Wriggle!', onClick: this.a.act }, ...pick], 1 - game.dragProgress);
+      return;
+    }
+    if (game.working) {
+      const w = game.working;
+      const dishes = w.place.kind === 'dishes';
+      const left = dishes ? 1 - w.earned / DISHWASHING.max : Math.max(0, (w.endAt - game.time) / BUSKING.duration);
+      this.show(`work:${w.place.id}`, () => glyphCanvas(w.place.kind), dishes ? 'Washing dishes' : 'Playing music',
+        dishes ? `€${w.earned} of €${DISHWASHING.max}` : `€${w.earned} in the hat`,
+        [{ label: 'Stop', onClick: this.a.stopWorking, quiet: true }], left);
       return;
     }
     if (game.fishing) {
@@ -118,6 +128,8 @@ function verb(p: Place, price: number, game: Game) {
   if (p.kind === 'haven') return `Unwind${cost}`;
   if (p.kind === 'fishing') return 'Cast a line';
   if (p.kind === 'party') return `Join${cost}`;
+  if (p.kind === 'dishes') return 'Wash dishes';
+  if (p.kind === 'busk') return 'Play music';
   if (p.kind === 'cat') return `Feed${cost}`;
   if (p.kind === 'pharmacy') return `${game.sick ? 'Buy medicine' : 'Buy tonic'}${cost}`;
   if (p.kind === 'water') return `Drink${cost}`;
@@ -127,6 +139,8 @@ function verb(p: Place, price: number, game: Game) {
 
 function describe(p: Place, game: Game) {
   if (p.kind === 'fishing') return 'Sit, wait, sell the catch';
+  if (p.kind === 'dishes') return `€${DISHWASHING.pay}/s, up to €${DISHWASHING.max}`;
+  if (p.kind === 'busk') return 'Random tips; tourists tip more';
   if (p.kind === 'party') return `Music, two drinks (+${PARTY.healthBoost} health, one to share)`;
   if (p.kind === 'cat') return game.criminal ? 'Feeding it clears your record' : 'It looks hungry';
   if (p.kind === 'haven') return `Food, drink, rest & friends · all to 100, health to ${MIKATU.healthFloor}`;

@@ -55,7 +55,7 @@ if (failures) process.exit(1);
 
 // 3. survival rules
 import { Game } from '../src/game/game';
-import { BAD_GUYS, BEGGARS, CATS, PARTY, FISHING, ILLNESS, MARKET, MEDICINE, MIKATU, POLICE, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
+import { BAD_GUYS, BEGGARS, BUSKING, CATS, DISHWASHING, PARTY, FISHING, ILLNESS, MARKET, MEDICINE, MIKATU, POLICE, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
 {
   const start = graph.edges.find((e) => e.kind === 'bridge')!;
   const startNode = graph.node(start.a).exit ? start.b : start.a;
@@ -285,5 +285,30 @@ import { BAD_GUYS, BEGGARS, CATS, PARTY, FISHING, ILLNESS, MARKET, MEDICINE, MIK
   if (g.party && g.time > PARTY.firstAt + PARTY.duration + 0.5 && g.party.until < g.time) fail('party never ended');
   if (g.places.some((p) => p.kind === 'party' && !g.party)) fail('ended party left its place behind');
   console.log('ok: parties');
+
+  // 8. jobs
+  g = mk(50); quiet(g);
+  const kitchen = g.places.find((p) => p.kind === 'dishes')!;
+  g.near = kitchen; g.act();
+  if (!g.working || g.player.walker.moving) fail('dishwashing did not stop you');
+  for (let i = 0; i < 60 * 30 && g.working; i++) g.update(step);
+  if (g.working || g.money !== 50 + DISHWASHING.max) fail(`dishwashing paid ${g.money - 50}, expected ${DISHWASHING.max}`);
+  if (g.refusal(kitchen) !== 'No dishes right now') fail('kitchen had no cooldown');
+  // leave early: keep what you earned
+  g = mk(50); quiet(g);
+  g.near = g.places.find((p) => p.kind === 'dishes')!; g.act();
+  for (let i = 0; i < 60 * 3.5; i++) g.update(step);
+  g.steer('up');
+  if (g.working || g.money !== 50 + 3 * DISHWASHING.pay) fail(`leaving early kept €${g.money - 50}`);
+  // dirty shoes: no kitchen job
+  g = mk(50); quiet(g); g.dirty = true;
+  if (g.refusal(g.places.find((p) => p.kind === 'dishes')!) !== 'Too dirty') fail('dirty traveller got a kitchen job');
+  // busking with a rigged hat: a tip every second, set ends after its duration
+  g = new Game(graph, 50, startNode, () => 0.01); quiet(g);
+  const pitch = g.places.find((p) => p.kind === 'busk')!;
+  g.near = pitch; g.act();
+  for (let i = 0; i < 60 * (BUSKING.duration + 1) && g.working; i++) g.update(step);
+  if (g.working || g.money !== 50 + BUSKING.duration * BUSKING.tipMin) fail(`busking paid ${g.money - 50}`);
+  console.log('ok: jobs');
 }
 if (failures) process.exit(1);

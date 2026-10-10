@@ -508,3 +508,33 @@ export const TOUCH = {
   /** Vibrate on hits where the phone supports it (ms, 0 = off). */
   vibrateMs: 60,
 };
+
+// ---------------------------------------------------------------------------
+// JOBS — the dot stops while you work; steering stops early (you keep what you earned)
+// ---------------------------------------------------------------------------
+export const DISHWASHING = {
+  name: 'Kitchen door, Via della Maestranza',
+  at: [37.061737, 15.294722] as LatLon,
+  /** € paid every `every` seconds, until `max` € for the shift. */
+  pay: 2,
+  every: 1,
+  max: 20,
+  /** The kitchen needs you again only after this long (s). */
+  cooldown: 60,
+};
+
+export const BUSKING = {
+  name: 'Busking pitch, Via Landolina',
+  at: [37.060306, 15.292437] as LatLon,
+  /** Length of a set (s). */
+  duration: 15,
+  /** Chance per second that someone drops a tip, and its size (€). */
+  tipChance: 0.4,
+  tipMin: 1,
+  tipMax: 5,
+  /** A tour group within this distance (m) multiplies the tip chance. */
+  crowdRadius: 60,
+  crowdBoost: 2,
+  /** The crowd needs a break before your next set (s). */
+  cooldown: 40,
+};

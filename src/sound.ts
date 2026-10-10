@@ -93,6 +93,7 @@ const C5 = 523.25, E5 = 659.25, G5 = 783.99, A4 = 440, C6 = 1046.5;
 export function play(s: Sfx | 'dice' | 'start' | 'win' | 'death') {
   switch (s) {
     case 'meow': meow(0); break;
+    case 'clink': tone(1568, 0, 0.05, 'triangle', 0.08); break;
     case 'eat': tone(330, 0, 0.08, 'triangle', 0.25); tone(440, 0.07, 0.1, 'triangle', 0.25); break;
     case 'drink': tone(600, 0, 0.18, 'sine', 0.25, 1200); break;
     case 'coin': tone(988, 0, 0.07, 'square', 0.12); tone(1319, 0.07, 0.18, 'square', 0.12); break;

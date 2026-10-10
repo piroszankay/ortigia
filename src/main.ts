@@ -33,6 +33,7 @@ const card = new ActionCard(document.getElementById('action')!, {
   offerDrink: () => game?.offerDrink(),
   drinkSpare: () => game?.drinkSpare(),
   stopFishing: () => game?.stopFishing(),
+  stopWorking: () => game?.stopWorking(true),
   wake: () => game?.wake(true),
   accept: () => game?.acceptOffer(),
   decline: () => game?.declineOffer(),
@@ -108,6 +109,7 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (game.sleeping) game.wake(true);
     else if (game.fishing) game.stopFishing();
+    else if (game.working) game.stopWorking(true);
     else game.act();
   }
 });
@@ -279,6 +281,28 @@ function drawPlayer(g: Game) {
     ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.quadraticCurveTo(p.x + dx * 14, p.y - dy * 14 - 8, fx, fy); ctx.stroke();
     ctx.fillStyle = '#ff4b3e';
     ctx.beginPath(); ctx.arc(fx, fy, 2.4, 0, Math.PI * 2); ctx.fill();
+  }
+  if (g.working) {
+    // floating notes while busking, soap bubbles while washing up
+    const busk = g.working.place.kind === 'busk';
+    for (let i = 0; i < 3; i++) {
+      const t = (g.time * 0.7 + i / 3) % 1;
+      ctx.globalAlpha = 1 - t;
+      const zx = p.x - 6 + i * 6 + Math.sin((t + i) * 6) * 2, zy = p.y - 9 - t * 18;
+      if (busk) {
+        ctx.font = 'bold 12px Georgia, serif';
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = 'rgba(194,48,79,0.9)';
+        ctx.lineWidth = 3;
+        ctx.strokeText('♪', zx, zy);
+        ctx.fillText('♪', zx, zy);
+      } else {
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(zx, zy, 2 + t * 2, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
   }
   if (g.sleeping) {
     // drifting z's
