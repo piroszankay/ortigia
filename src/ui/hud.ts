@@ -22,6 +22,7 @@ export class Hud {
         <span class="hud-title">Ortigia</span>
         <span class="money"><b class="money-now">€0</b><small class="money-start"></small></span>
         <span class="clock"></span>
+        <span class="hud-btns"><button class="hud-btn mute" type="button" aria-label="Sound on/off"></button><button class="hud-btn pause" type="button" aria-label="Pause">❚❚</button></span>
       </div>
       <div class="bars">${BAR_LABELS.map(([k, l]) => `
         <div class="bar bar-${k}"><span class="lbl">${l}</span><div class="track"><div class="fill"></div></div></div>`).join('')}
@@ -54,6 +55,16 @@ export class Hud {
     setTimeout(() => el.classList.add('old'), HUD_LOG.fadeAfter * 1000);
   }
 
+  /** Wire the mute and pause buttons. */
+  bindButtons(onMute: () => boolean, onPause: () => void, muted: boolean) {
+    const mute = this.el.querySelector<HTMLButtonElement>('.mute')!;
+    const pause = this.el.querySelector<HTMLButtonElement>('.pause')!;
+    const label = (m: boolean) => { mute.textContent = m ? '♪̸' : '♪'; mute.classList.toggle('off', m); };
+    label(muted);
+    mute.onclick = () => label(onMute());
+    pause.onclick = onPause;
+  }
+
   clearMessages() { this.news.innerHTML = ''; }
 
   update(game: Game | null) {
@@ -68,7 +79,7 @@ export class Hud {
     const bag = game.inventory.map((o) => `<span><span class="full">${o.item.name}</span><span class="short">${o.item.short}</span> <b>€${o.paid}</b></span>`).join('<i> · </i>') || '<span class="empty">empty</span>';
     if (bag !== this.lastBag) { this.bag.innerHTML = bag; this.lastBag = bag; }
     const m = Math.round(game.money);
-    const key = `${m}|${Math.floor(game.clockMinutes)}|${game.sleeping ? 1 : 0}|${game.dirty ? 1 : 0}|${game.robbed}|${game.drag ? 1 : 0}|${game.poisoned ? 1 : 0}|${game.infected ? 1 : 0}|${game.criminal ? 1 : 0}`;
+    const key = `${m}|${Math.floor(game.clockMinutes)}|${game.sleeping ? 1 : 0}|${game.dirty ? 1 : 0}|${game.robbed}|${game.drag ? 1 : 0}|${game.poisoned ? 1 : 0}|${game.infected ? 1 : 0}|${game.criminal ? 1 : 0}|${game.spareDrink ? 1 : 0}|${game.hasFriend ? 1 : 0}`;
     if (key === this.last) return;
     this.last = key;
     this.money.textContent = `€${m}`;
@@ -78,6 +89,8 @@ export class Hud {
     const chips: string[] = [];
     if (game.sleeping) chips.push('<span class="chip sleep">asleep</span>');
     if (game.drag) chips.push('<span class="chip dragged">in a tour group</span>');
+    if (game.spareDrink) chips.push('<span class="chip drink">spare drink</span>');
+    if (game.hasFriend) chips.push('<span class="chip friend">friend</span>');
     if (game.criminal) chips.push('<span class="chip wanted">criminal</span>');
     if (game.dirty) chips.push('<span class="chip dirty">dirty shoes</span>');
     if (game.poisoned) chips.push('<span class="chip sick">food poisoning</span>');

@@ -55,7 +55,7 @@ if (failures) process.exit(1);
 
 // 3. survival rules
 import { Game } from '../src/game/game';
-import { BAD_GUYS, BEGGARS, CATS, FISHING, ILLNESS, MARKET, MEDICINE, MIKATU, POLICE, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
+import { BAD_GUYS, BEGGARS, CATS, PARTY, FISHING, ILLNESS, MARKET, MEDICINE, MIKATU, POLICE, SEX_WORKERS, SLEEP_KINDS, TOURISTS } from '../src/config';
 {
   const start = graph.edges.find((e) => e.kind === 'bridge')!;
   const startNode = graph.node(start.a).exit ? start.b : start.a;
@@ -252,5 +252,38 @@ import { BAD_GUYS, BEGGARS, CATS, FISHING, ILLNESS, MARKET, MEDICINE, MIKATU, PO
   for (let i = 0; i < 60 * (MARKET.window + 0.5); i++) g.update(step);
   if (g.market.open) fail('market window did not close');
   console.log('ok: economy');
+
+  // 7. parties (Milestone 6)
+  g = mk(100); quiet(g);
+  for (let i = 0; i < 60 * (PARTY.firstAt + 0.1) && !g.party; i++) g.update(step);
+  if (!g.party) fail('no party started');
+  const party = g.party!.place;
+  g.bars.health = 50;
+  g.near = party; g.act();
+  if (!g.spareDrink || g.money !== 100 - PARTY.entry || g.bars.health !== 50 + PARTY.healthBoost) fail('party entry wrong');
+  if (g.refusal(party) !== 'Already danced') fail('could join the same party twice');
+  // offer the spare drink to a beggar → friend → free sofa
+  const pals = new Game(graph, 100, startNode, mulberry32(5)).npcs;
+  g.npcs.push(...pals); for (const n of g.npcs) n.walker.speed = 0;
+  moveTo(g, at(g, 'beggar'));
+  if (g.drinkTarget?.kind !== 'beggar') fail(`drink target should be the beggar, got ${g.drinkTarget?.kind}`);
+  g.offerDrink();
+  const sofa = g.places.find((p) => p.kind === 'sofa')!;
+  if (!g.hasFriend || g.spareDrink || g.priceOf(sofa) !== 0) fail('friend / free sofa not unlocked');
+  // a thug who takes the drink never hurts you again
+  g.spareDrink = true;
+  const big = g.npcs.find((n) => n.kind === 'bad' && n.size === 'large')!;
+  moveTo(g, big);
+  (g as any).npcs.splice(0, g.npcs.length, big);
+  g.offerDrink();
+  big.cooldownUntil = 0;
+  const hp = g.bars.health; g.update(step);
+  if (!big.pacified || g.bars.health < hp - 0.1) fail('pacified thug still hurt you');
+  // party ends
+  g = mk(100); quiet(g);
+  for (let i = 0; i < 60 * (PARTY.firstAt + PARTY.duration + 1); i++) g.update(step);
+  if (g.party && g.time > PARTY.firstAt + PARTY.duration + 0.5 && g.party.until < g.time) fail('party never ended');
+  if (g.places.some((p) => p.kind === 'party' && !g.party)) fail('ended party left its place behind');
+  console.log('ok: parties');
 }
 if (failures) process.exit(1);

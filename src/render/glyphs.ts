@@ -11,6 +11,7 @@ export const PLACE_COLORS: Record<PlaceKind, string> = {
   haven: '#16a3a0',
   fishing: '#24557f',
   cat: '#e08a2c',
+  party: '#9b3fd1',
 };
 
 /** A round badge with a simple white symbol, centred on (x, y), radius r (CSS px). */
@@ -97,6 +98,12 @@ export function drawPlaceGlyph(ctx: CanvasRenderingContext2D, kind: PlaceKind, x
       ctx.arc(x, y + 0.2 * u, 3.6 * u, 0, Math.PI);
       ctx.closePath();
       ctx.fill();
+      break;
+    case 'party': // a music note
+      ctx.beginPath(); ctx.ellipse(x - 1.4 * u, y + 2.6 * u, 1.9 * u, 1.4 * u, -0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 0.4 * u, y + 2.4 * u); ctx.lineTo(x + 0.4 * u, y - 4 * u); ctx.lineTo(x + 3.4 * u, y - 2.6 * u);
+      ctx.stroke();
       break;
     case 'sofa':
       ctx.moveTo(x - 4.2 * u, y - 0.5 * u); ctx.lineTo(x - 4.2 * u, y + 3 * u);

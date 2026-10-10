@@ -41,7 +41,7 @@ function shadow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) 
   ctx.beginPath(); ctx.ellipse(x + 0.8, y + 1.6, r, r * 0.8, 0, 0, Math.PI * 2); ctx.fill();
 }
 
-function drawBeggar(ctx: CanvasRenderingContext2D, x: number, y: number) {
+export function drawBeggar(ctx: CanvasRenderingContext2D, x: number, y: number) {
   shadow(ctx, x, y, 5);
   ctx.fillStyle = '#8b7d6b';
   ctx.strokeStyle = '#3d342a';
@@ -67,7 +67,7 @@ export function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.fill(); ctx.stroke();
 }
 
-function drawBadGuy(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, t: number) {
+export function drawBadGuy(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, t: number) {
   shadow(ctx, x, y, r);
   const spikes = 9, wob = Math.sin(t * 8) * 0.12;
   ctx.fillStyle = '#2a1b1b';
@@ -113,7 +113,7 @@ function drawTourists(ctx: CanvasRenderingContext2D, view: View, n: Npc, t: numb
   ctx.beginPath(); ctx.moveTo(g.x - 5, g.y - 12); ctx.quadraticCurveTo(g.x, g.y - 19, g.x + 5, g.y - 12); ctx.closePath(); ctx.fill();
 }
 
-function drawPoop(ctx: CanvasRenderingContext2D, x: number, y: number) {
+export function drawPoop(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.fillStyle = 'rgba(0,0,0,0.2)';
   ctx.beginPath(); ctx.ellipse(x + 0.5, y + 2.5, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#6b4423';
@@ -138,7 +138,7 @@ export function drawTouristIcon(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.beginPath(); ctx.moveTo(x - 8, y - 10); ctx.quadraticCurveTo(x - 2, y - 17, x + 4, y - 10); ctx.closePath(); ctx.fill();
 }
 
-function drawPolice(ctx: CanvasRenderingContext2D, x: number, y: number, alert: boolean, t: number) {
+export function drawPolice(ctx: CanvasRenderingContext2D, x: number, y: number, alert: boolean, t: number) {
   shadow(ctx, x, y, 6);
   ctx.fillStyle = '#1d3f8f';
   ctx.strokeStyle = '#fff';

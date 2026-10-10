@@ -145,7 +145,7 @@ export const MOVEMENT = {
 
 export const INPUT = {
   /** Minimum finger travel (CSS px) to register a swipe. */
-  swipeThreshold: 22,
+  swipeThreshold: 18,
 };
 
 // ---------------------------------------------------------------------------
@@ -458,3 +458,51 @@ export const ITEMS = [
   { id: 'postcard', name: 'Caravaggio postcard', short: 'Postcard', base: 4 },
   { id: 'vespa', name: 'Mysterious Vespa key', short: 'Vespa key', base: 25 },
 ];
+
+// ---------------------------------------------------------------------------
+// PARTIES, SOUND, POLISH (Milestone 6)
+// ---------------------------------------------------------------------------
+export const PARTY = {
+  /** First party after this many seconds, then one every `interval` (random ± jitter). */
+  firstAt: 45,
+  interval: 75,
+  jitter: 20,
+  /** How long a party lasts (s). */
+  duration: 40,
+  /** Parties start at least this far from you (m). */
+  minDistanceFromPlayer: 140,
+  entry: 10,
+  /** The first drink, drunk on entry. */
+  healthBoost: 15,
+  thirstBoost: 30,
+  /** Drinking the spare drink yourself. */
+  spareThirst: 25,
+  /** Offer the spare drink to a character this close (m). */
+  offerRadius: 30,
+};
+
+export const SOUND = {
+  volume: 0.5,
+  enabledByDefault: true,
+};
+
+export const NIGHT = {
+  /** Darkness fades in from duskStart to nightStart and out from dawnStart to dayStart (hours). */
+  duskStart: 19,
+  nightStart: 21.5,
+  dawnStart: 5,
+  dayStart: 7,
+  /** Strength of the night tint (0–1). */
+  maxAlpha: 0.38,
+};
+
+export const TOUCH = {
+  /** Tap anywhere on the map: the dot turns towards the tap (dominant direction). */
+  tapToSteer: true,
+  /** A touch counts as a tap if it moves less than this (CSS px) … */
+  tapMaxMove: 12,
+  /** … and lasts less than this (ms). */
+  tapMaxTime: 300,
+  /** Vibrate on hits where the phone supports it (ms, 0 = off). */
+  vibrateMs: 60,
+};

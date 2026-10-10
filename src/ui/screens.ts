@@ -1,5 +1,9 @@
 import { DICE } from '../config';
 import type { Ending, Game } from '../game/game';
+import { play } from '../sound';
+import { drawBadGuy, drawBeggar, drawHeart, drawPolice, drawPoop, drawTouristIcon } from '../render/actors';
+import { drawPlaceGlyph, iconCanvas } from '../render/glyphs';
+import type { PlaceKind } from '../game/places';
 import { formatClock } from './hud';
 import { hideOverlay, showOverlay } from './overlay';
 
@@ -17,14 +21,7 @@ export function showTitle(onRolled: (money: number) => void, bridge: string) {
     <div class="dice" aria-live="polite">${Array.from({ length: DICE.count }, () => dieHtml(randFace())).join('')}</div>
     <p class="dice-result small">Roll to see what's in your pocket.</p>
     <button id="roll" type="button">Roll the dice</button>
-    <details class="howto"><summary>How to play</summary>
-      <p>Your dot never stops walking. Steer with <b>arrow keys / WASD</b> or <b>swipe</b>: the turn is taken at the next corner where it's possible. Push against your direction to turn round. Small arrows mark one-way streets.</p>
-      <p>Food, water and sleep drain all the time. If any of them hits zero, your health drops. Walk past a place and tap its button (or press <b>Space</b>) to use it. Fountains are free and work as you pass.</p>
-      <p>Watch the streets: <b>spiky thugs</b> hurt you (bigger ones hurt more), <b>beggars</b> take a few euros, <b>tour groups</b> block the way and can sweep you along (tap fast to escape), and <b>dog poop</b> gets you turned away from restaurants and hotels until you wash at a fountain. Benches are free but pickpockets work at night.</p>
-      <p>Make money by <b>fishing</b> at the two fish spots, by <b>pickpocketing</b> tour groups (button appears when you're close), and by trading on the <b>market</b>: every minute a seller and a buyer appear for 10 seconds. Pickpocketing makes you a criminal: never share a street with the <b>police</b> (their streets glow red). Feed a <b>street cat</b> to clear your record. If you were robbed in your sleep, touch an officer to get some of it back.</p>
-      <p>Bad fish and bad company can make you sick: your health drains until you buy medicine at a <b>pharmacy</b> (green cross).</p>
-      <p>The green markers are the bridges out. Leave with more than you arrived with to win.</p>
-    </details>`);
+    <button id="howto" class="link" type="button">How to play</button>`);
   const btn = document.getElementById('roll') as HTMLButtonElement;
   const result = document.querySelector<HTMLElement>('.dice-result')!;
   const dice = document.querySelector<HTMLElement>('.dice')!;
@@ -34,6 +31,7 @@ export function showTitle(onRolled: (money: number) => void, bridge: string) {
     rolled = true;
     btn.disabled = true;
     dice.classList.add('rolling');
+    play('dice');
     const faces = Array.from({ length: DICE.count }, randFace);
     const t0 = performance.now();
     const tick = () => {
@@ -58,6 +56,10 @@ export function showTitle(onRolled: (money: number) => void, bridge: string) {
   };
   btn.onclick = roll;
   btn.focus();
+  const how = document.getElementById('howto') as HTMLButtonElement;
+  how.onclick = () => showHowTo(() => showTitle(onRolled, bridge));
+  const rollWas = roll;
+  btn.onclick = () => { how.hidden = true; rollWas(); };
 }
 
 const DEATHS: Record<string, [string, string]> = {
@@ -93,4 +95,61 @@ export function showEnding(game: Game, e: Ending, onAgain: () => void) {
   const btn = document.getElementById('again') as HTMLButtonElement;
   btn.onclick = onAgain;
   setTimeout(() => btn.focus(), 50);
+}
+
+// ---------------------------------------------------------------------------
+// How to play: a visual legend plus the rules in a few lines.
+type Draw = (ctx: CanvasRenderingContext2D, x: number, y: number) => void;
+const place = (k: PlaceKind): Draw => (c, x, y) => drawPlaceGlyph(c, k, x, y, 6.5);
+const LEGEND: [Draw, string][] = [
+  [(c, x, y) => {
+    c.fillStyle = '#ffe14d'; c.beginPath(); c.arc(x, y, 7.5, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff'; c.strokeStyle = '#0d1b33'; c.lineWidth = 2.4; c.beginPath(); c.arc(x, y, 5.2, 0, Math.PI * 2); c.fill(); c.stroke();
+  }, '<b>You</b>, always walking'],
+  [place('water'), '<b>Fountain</b>: free water, washes you'],
+  [place('food'), '<b>Restaurant</b>: food & water, €'],
+  [place('haven'), '<b>Mikatu</b>: all-inclusive, €12'],
+  [place('pharmacy'), '<b>Pharmacy</b>: medicine'],
+  [place('bench'), '<b>Bench</b>: free sleep, pickpockets'],
+  [place('hostel'), '<b>Hostel</b> · ' + '<b>Hotel</b> · <b>Sofa</b>: beds'],
+  [place('fishing'), '<b>Fishing spot</b>: catch & sell'],
+  [place('party'), '<b>Party</b>: two drinks, make a friend'],
+  [place('cat'), '<b>Street cat</b>: feed it to clear your record'],
+  [(c, x, y) => drawBadGuy(c, x, y, 6, 0), '<b>Thug</b>: hurts; bigger hurts more'],
+  [drawBeggar, '<b>Beggar</b>: takes a few euros'],
+  [drawHeart, '<b>Stranger</b>: company for a price'],
+  [(c, x, y) => drawTouristIcon(c, x, y + 2), '<b>Tour group</b>: blocks, drags, has wallets'],
+  [(c, x, y) => drawPolice(c, x, y, false, 0), '<b>Police</b>: avoid them if you stole'],
+  [drawPoop, '<b>Dog poop</b>: no restaurants until you wash'],
+];
+
+export function showHowTo(onBack: () => void) {
+  try { localStorage.setItem('ortigia-howto-seen', '1'); } catch { /* ignore */ }
+  showOverlay(`
+    <h1>How to play</h1>
+    <p class="small">Survive the island and leave by a bridge (green arrows) with more money than you arrived with.</p>
+    <div class="howto-controls">
+      <p><b>Steer</b>: arrow keys / WASD, swipe, or tap the map on the side you want to go. The turn happens at the next corner where it's possible. Push against your direction to turn round. Arrows on streets mean one-way.</p>
+      <p><b>Act</b>: tap the card's button, or press <b>Space</b>. <b>P</b> pickpocket · <b>O</b> offer a drink · <b>1</b>/<b>2</b> buy/sell · <b>Y</b>/<b>N</b> answer · <b>Esc</b> pause.</p>
+      <p>Food, water and sleep drain all the time; each one at zero costs health. Bad fish and bad company make you sick until you visit a pharmacy. Pickpocketing makes you a criminal: never share a street with the police (their streets glow red).</p>
+    </div>
+    <div class="legend"></div>
+    <button id="back" type="button">Got it</button>`);
+  const legend = document.querySelector('.legend')!;
+  for (const [draw, text] of LEGEND) {
+    const row = document.createElement('div');
+    row.className = 'legend-row';
+    row.appendChild(iconCanvas(draw, 1.25, 28));
+    const span = document.createElement('span');
+    span.innerHTML = text;
+    row.appendChild(span);
+    legend.appendChild(row);
+  }
+  const b = document.getElementById('back') as HTMLButtonElement;
+  b.onclick = onBack;
+  b.focus();
+}
+
+export function howToSeen() {
+  try { return localStorage.getItem('ortigia-howto-seen') === '1'; } catch { return true; }
 }

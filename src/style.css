@@ -245,3 +245,26 @@ html, body {
 @media (min-width: 820px) and (min-aspect-ratio: 5/4) {
   .status-row { flex-direction: column; align-items: stretch; gap: 10px; }
 }
+
+/* ---- Milestone 6 -------------------------------------------------------- */
+.hud-btns { display: flex; gap: 6px; pointer-events: auto; }
+.hud-btn {
+  font: inherit; font-size: 13px; color: var(--paper); background: rgba(255, 255, 255, 0.1); border: 0;
+  border-radius: 8px; width: 32px; height: 28px; cursor: pointer; touch-action: manipulation;
+}
+.hud-btn.off { opacity: 0.55; }
+.hud-btn:focus-visible { outline: 2px solid var(--paper); }
+#hud.idle .hud-btns { visibility: hidden; }
+.chip.drink { background: #7b3fb0; }
+.chip.friend { background: #2f7a4f; }
+.card button.link { background: none; color: var(--terracotta-dark); text-decoration: underline; min-width: 0; padding: 6px; font-weight: 600; }
+.card { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.howto-controls { text-align: left; font-size: 13px; }
+.howto-controls p { margin: 6px 0; }
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; text-align: left; font-size: 12px; margin-top: 10px; }
+.legend-row { display: flex; align-items: center; gap: 6px; min-width: 0; line-height: 1.25; }
+.legend-row canvas { flex: none; }
+@media (max-width: 360px) { .legend { grid-template-columns: 1fr; } }
+@media (min-width: 820px) and (min-aspect-ratio: 5/4) {
+  .hud-btns { position: absolute; top: 24px; right: 16px; }
+}

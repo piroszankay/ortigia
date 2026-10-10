@@ -1,4 +1,4 @@
-import { MIKATU, MEDICINE, SEX_WORKERS, SLEEP_KINDS, SLEEP_THEFT } from '../config';
+import { MIKATU, MEDICINE, PARTY, SEX_WORKERS, SLEEP_KINDS, SLEEP_THEFT } from '../config';
 import type { Game } from '../game/game';
 import { isSleep, type Place } from '../game/places';
 import { drawHeart, drawTouristIcon } from '../render/actors';
@@ -7,6 +7,8 @@ import { glyphCanvas, iconCanvas } from '../render/glyphs';
 export interface CardActions {
   act: () => void;
   pickpocket: () => void;
+  offerDrink: () => void;
+  drinkSpare: () => void;
   stopFishing: () => void;
   wake: () => void;
   accept: () => void;
@@ -36,8 +38,11 @@ export class ActionCard {
       return;
     }
     const pick: Btn[] = game.pickable ? [{ label: 'Pickpocket', onClick: this.a.pickpocket, quiet: true }] : [];
+    const target = game.drinkTarget;
+    const share: Btn[] = target ? [{ label: `Offer drink to ${NPC_NAMES[target.kind]}`, onClick: this.a.offerDrink, quiet: true }] : [];
+    pick.push(...share);
     if (game.drag) {
-      this.show(`drag:${pick.length}`, () => iconCanvas((c) => drawTouristIcon(c, 0, 3), 1.15), 'Stuck in a tour group', 'Tap fast, or steer at a corner',
+      this.show(`drag:${pick.length}:${target?.id}`, () => iconCanvas((c) => drawTouristIcon(c, 0, 3), 1.15), 'Stuck in a tour group', 'Tap fast, or steer at a corner',
         [{ label: 'Wriggle!', onClick: this.a.act }, ...pick], 1 - game.dragProgress);
       return;
     }
@@ -56,13 +61,18 @@ export class ActionCard {
     const p = game.near;
     if (!p) {
       if (!pick.length) return this.hide();
-      this.show('pick', () => iconCanvas((c) => drawTouristIcon(c, 0, 3), 1.15), 'A tour group', 'Wallets in back pockets…',
-        [{ ...pick[0], quiet: false }], 1);
+      if (target && !game.pickable) {
+        this.show(`share:${target.id}`, () => glyphCanvas('party'), 'Your spare drink', `${cap(NPC_NAMES[target.kind])} is right here`,
+          [{ label: `Offer to ${NPC_NAMES[target.kind]}`, onClick: this.a.offerDrink }, { label: 'Drink it', onClick: this.a.drinkSpare, quiet: true }], 1);
+        return;
+      }
+      this.show(`pick:${pick.length}`, () => iconCanvas((c) => drawTouristIcon(c, 0, 3), 1.15), 'A tour group', 'Wallets in back pockets…',
+        [{ ...pick[0], quiet: false }, ...pick.slice(1)], 1);
       return;
     }
     const refusal = game.refusal(p);
     const price = game.priceOf(p);
-    this.show(`near:${p.id}:${refusal}:${price}:${game.sick}:${game.criminal}:${pick.length}`, () => glyphCanvas(p.kind), p.name, describe(p, game),
+    this.show(`near:${p.id}:${refusal}:${price}:${game.sick}:${game.criminal}:${pick.length}:${target?.id}`, () => glyphCanvas(p.kind), p.name, describe(p, game),
       [{ label: refusal ?? verb(p, price, game), onClick: this.a.act, disabled: !!refusal }, ...pick], game.nearWindow);
   }
 
@@ -107,6 +117,7 @@ function verb(p: Place, price: number, game: Game) {
   const cost = price > 0 ? ` · €${price}` : '';
   if (p.kind === 'haven') return `Unwind${cost}`;
   if (p.kind === 'fishing') return 'Cast a line';
+  if (p.kind === 'party') return `Join${cost}`;
   if (p.kind === 'cat') return `Feed${cost}`;
   if (p.kind === 'pharmacy') return `${game.sick ? 'Buy medicine' : 'Buy tonic'}${cost}`;
   if (p.kind === 'water') return `Drink${cost}`;
@@ -116,6 +127,7 @@ function verb(p: Place, price: number, game: Game) {
 
 function describe(p: Place, game: Game) {
   if (p.kind === 'fishing') return 'Sit, wait, sell the catch';
+  if (p.kind === 'party') return `Music, two drinks (+${PARTY.healthBoost} health, one to share)`;
   if (p.kind === 'cat') return game.criminal ? 'Feeding it clears your record' : 'It looks hungry';
   if (p.kind === 'haven') return `Food, drink, rest & friends · all to 100, health to ${MIKATU.healthFloor}`;
   if (p.kind === 'pharmacy') {
@@ -132,3 +144,6 @@ function describe(p: Place, game: Game) {
   const fx = [p.hunger && `+${p.hunger} food`, p.thirst && `+${p.thirst} water`].filter(Boolean).join(' ');
   return `${p.detail} · ${fx}${p.risk >= 0.1 ? ' · fish of uncertain age' : ''}`;
 }
+
+const NPC_NAMES: Record<string, string> = { beggar: 'the beggar', sexworker: 'the stranger', bad: 'the thug', tourists: 'a tourist', police: 'the officer' };
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);

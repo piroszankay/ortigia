@@ -3,7 +3,7 @@ import { project, type Vec } from '../geo';
 import type { Edge, Graph } from '../map/graph';
 
 export type SleepKind = keyof typeof SLEEP_KINDS;
-export type PlaceKind = 'water' | 'food' | 'pharmacy' | 'haven' | 'fishing' | 'cat' | SleepKind;
+export type PlaceKind = 'water' | 'food' | 'pharmacy' | 'haven' | 'fishing' | 'cat' | 'party' | SleepKind;
 
 export interface Place {
   id: number;

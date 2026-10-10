@@ -66,6 +66,17 @@ Map build parameters (merge distances, dead-end length, bridges, bbox) are in `M
 - **Street cats** (5, random spots): feeding one for €2 clears your criminal record.
 - **Market**: every 60 s an item is for sale and someone wants an item, both for 10 s (keys 1 / 2). There are 14 Ortigia items, priced randomly around their base value. Your bag is shown in the HUD under the bars, with what you paid for each item.
 
+## Parties, sound and polish (Milestone 6)
+
+- **Parties** pop up at random streets (purple note with confetti) for 40 s. Entry gives two drinks: one now (+health, +water), and a **spare drink**. Offer the spare drink (button, or O) to whoever is close. Anyone becomes your **friend**, which makes the friend's sofa free; a thug who takes it never hurts you again. You can also drink it yourself.
+- **Sound effects** are synthesized in the browser, with no audio files. The ♪ button in the HUD mutes them, and the setting is remembered.
+- **Pause** with the HUD button or Esc; the game also pauses when you switch tabs.
+- **Night**: a soft blue tint follows the in-game clock.
+- **Touch**: besides swiping, tap the map on the side you want to go. Phones vibrate on hits where supported.
+- **How to play** opens on your first visit (and from the title screen), with a visual legend of every icon.
+
+All of it is tunable in config: `PARTY`, `SOUND`, `NIGHT`, `TOUCH`.
+
 ## Mikatu
 
 Mikatu (teal sun, west waterfront in the south) is a place to eat, drink, rest and spend time with friends. One visit costs €12. It fills food, water and sleep to 100 and brings health back up to 50 (it never lowers it). It does not cure illness. Tune it in `MIKATU` in config.

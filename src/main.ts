@@ -1,5 +1,5 @@
 import './style.css';
-import { GAME, PALETTE, RENDER, SIM } from './config';
+import { GAME, NIGHT, PALETTE, RENDER, SIM, TOUCH } from './config';
 import { Game } from './game/game';
 import { buildPlaces } from './game/places';
 import { DIR_VEC } from './game/player';
@@ -8,12 +8,15 @@ import { Graph } from './map/graph';
 import mapData from './map/ortigia-map.json';
 import type { MapData } from './map/types';
 import { drawActors } from './render/actors';
+import { drawPlaceGlyph } from './render/glyphs';
 import { MapRenderer } from './render/mapRenderer';
 import { View } from './render/view';
 import { ActionCard } from './ui/actionCard';
 import { Hud } from './ui/hud';
 import { MarketPanel } from './ui/marketPanel';
-import { showEnding, showTitle } from './ui/screens';
+import { howToSeen, showEnding, showHowTo, showTitle } from './ui/screens';
+import { hideOverlay, showOverlay } from './ui/overlay';
+import { isMuted, play, toggleMute, unlockAudio } from './sound';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -27,6 +30,8 @@ const hud = new Hud(hudEl);
 const card = new ActionCard(document.getElementById('action')!, {
   act: () => game?.act(),
   pickpocket: () => game?.pickpocket(),
+  offerDrink: () => game?.offerDrink(),
+  drinkSpare: () => game?.drinkSpare(),
   stopFishing: () => game?.stopFishing(),
   wake: () => game?.wake(true),
   accept: () => game?.acceptOffer(),
@@ -52,8 +57,11 @@ const arrivalNode = graph.node(arrivalBridge.a).exit ? arrivalBridge.b : arrival
 
 function title() {
   game = null;
+  game = null;
   showTitle((money) => {
     game = new Game(graph, money, arrivalNode, Math.random);
+    paused = false;
+    play('start');
     shownToasts = 0;
     hud.clearMessages();
     trail.length = 0;
@@ -61,12 +69,36 @@ function title() {
 }
 
 bindInput(canvas, (d) => {
-  if (!game || game.ending) return;
+  if (!game || game.ending || paused) return;
   game.steer(d);
   lastDirAt = game.time;
-});
+}, () => (game && !game.ending ? view.toScreen(game.player.walker.pos) : null));
+
+// audio may only start after a user gesture
+window.addEventListener('pointerdown', unlockAudio, { capture: true });
+window.addEventListener('keydown', unlockAudio, { capture: true });
+
+// ---------------------------------------------------------------------------
+// pause: HUD button, Esc, or switching away from the tab
+let paused = false;
+function setPaused(p: boolean) {
+  if (!game || game.ending || p === paused) return;
+  paused = p;
+  if (p) {
+    showOverlay(`<h1>Paused</h1><p>The labyrinth waits for you.</p><button id="resume" type="button">Carry on</button>`);
+    const b = document.getElementById('resume') as HTMLButtonElement;
+    b.onclick = () => setPaused(false);
+    b.focus();
+  } else hideOverlay();
+}
+hud.bindButtons(() => toggleMute(), () => setPaused(!paused), isMuted());
+document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
+
 window.addEventListener('keydown', (e) => {
   if (!game || game.ending) return;
+  if (e.key === 'Escape' && !game.offer) { setPaused(!paused); return; }
+  if (paused) return;
+  if (e.key === 'o' || e.key === 'O') { game.offerDrink(); return; }
   if (game.offer && (e.key === 'y' || e.key === 'Y')) { game.acceptOffer(); return; }
   if (game.offer && (e.key === 'n' || e.key === 'N' || e.key === 'Escape')) { game.declineOffer(); return; }
   if (e.key === 'p' || e.key === 'P') { game.pickpocket(); return; }
@@ -97,12 +129,48 @@ function resize() {
 window.addEventListener('resize', resize);
 
 function update(dt: number) {
-  if (!game || game.ending) return;
+  if (!game || game.ending || paused) return;
   game.update(dt);
+  for (const s of game.sfx) {
+    play(s);
+    if (s === 'hit' && TOUCH.vibrateMs) navigator.vibrate?.(TOUCH.vibrateMs);
+  }
+  game.sfx.length = 0;
   if (game.ending) {
     const g = game;
+    play(g.ending!.kind === 'win' ? 'win' : g.ending!.kind === 'poorer' ? 'start' : 'death');
     setTimeout(() => showEnding(g, g.ending!, title), 600);
   }
+}
+
+/** Night falls with the in-game clock: a soft blue tint over the map (0 = day). */
+function nightAlpha(min: number) {
+  const h = (min / 60) % 24, n = NIGHT;
+  let k = 0;
+  if (h >= n.nightStart || h < n.dawnStart) k = 1;
+  else if (h >= n.duskStart) k = (h - n.duskStart) / (n.nightStart - n.duskStart);
+  else if (h < n.dayStart) k = 1 - (h - n.dawnStart) / (n.dayStart - n.dawnStart);
+  return k * n.maxAlpha;
+}
+
+function drawParty(g: Game) {
+  if (!g.party) return;
+  const p = view.toScreen(g.party.place.pos);
+  const t = g.time;
+  // pulsing dance floor and confetti
+  for (let i = 0; i < 2; i++) {
+    const ph = ((t * 0.8 + i * 0.5) % 1);
+    ctx.strokeStyle = `rgba(190,90,240,${0.6 * (1 - ph)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 9 + ph * 22, 0, Math.PI * 2); ctx.stroke();
+  }
+  const colors = ['#ffd23f', '#ee4266', '#3bceac', '#5aa9e6', '#ffffff'];
+  for (let i = 0; i < 10; i++) {
+    const a = i * 0.63 + t * 1.3, r = 12 + ((i * 7 + t * 9) % 14);
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fillRect(p.x + Math.cos(a) * r - 1.2, p.y + Math.sin(a) * r - 1.2, 2.4, 2.4);
+  }
+  drawPlaceGlyph(ctx, 'party', p.x, p.y, RENDER.placeRadiusPx + 1, g.party.attended);
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +187,12 @@ function draw() {
   }
 
   if (game) {
+    const na = nightAlpha(game.clockMinutes);
+    if (na > 0) {
+      ctx.fillStyle = `rgba(12,20,58,${na})`;
+      ctx.fillRect(0, 0, view.width, view.height);
+    }
+    drawParty(game);
     drawNear(game);
     drawActors(ctx, view, game);
     drawPlayer(game);
@@ -249,5 +323,6 @@ function frame(now: number) {
 
 hud.update(null);
 resize();
-title();
+if (howToSeen()) title();
+else showHowTo(title);
 requestAnimationFrame(frame);

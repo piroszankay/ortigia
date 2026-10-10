@@ -22,6 +22,8 @@ export interface Npc {
   people?: number;
   /** Tourists: colour seed per person. */
   hats?: number[];
+  /** Thugs: accepted your spare drink and leave you alone for good. */
+  pacified?: boolean;
   /** Tourists: can't be pickpocketed again until this game time. */
   robbedUntil?: number;
 }
