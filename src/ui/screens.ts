@@ -116,6 +116,13 @@ const LEGEND: [Draw, string][] = [
   [place('party'), '<b>Party</b>: two drinks, make a friend'],
   [place('dishes'), '<b>Dishes</b>: €2/s, up to €20'],
   [place('busk'), '<b>Busking</b>: play for tips'],
+  [(c, x, y) => {
+    // a mini market panel: blue "for sale" and green "wanted" tiles on paper
+    c.fillStyle = '#f6edd6'; c.strokeStyle = 'rgba(90,65,40,0.8)'; c.lineWidth = 1;
+    c.beginPath(); c.roundRect(x - 9, y - 7, 18, 14, 3); c.fill(); c.stroke();
+    c.fillStyle = '#1d5a86'; c.beginPath(); c.roundRect(x - 7, y - 4, 6.5, 8, 1.5); c.fill();
+    c.fillStyle = '#2f7a4f'; c.beginPath(); c.roundRect(x + 0.5, y - 4, 6.5, 8, 1.5); c.fill();
+  }, '<b>Market</b>: every minute, buy or sell for 10 s'],
   [place('cat'), '<b>Street cat</b>: feed it to clear your record'],
   [(c, x, y) => drawBadGuy(c, x, y, 6, 0), '<b>Thug</b>: hurts; bigger hurts more'],
   [drawBeggar, '<b>Beggar</b>: takes a few euros'],
