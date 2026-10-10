@@ -12,6 +12,10 @@ npm run test:sim   # headless check: graph connectivity, movement and survival r
 npm run build:single  # one self-contained HTML file in dist/
 ```
 
+## Deploying (Cloudflare Pages)
+
+Build settings: root directory `ortigia`, build command `npm run build`, output directory `dist`. Node 22 is pinned in `.nvmrc`. `public/_headers` gives the hashed asset files long-lived caching.
+
 Every tunable number lives in [`src/config.ts`](src/config.ts).
 
 ## Map data
