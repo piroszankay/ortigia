@@ -23,7 +23,11 @@ npx wrangler pages project create ortigia --production-branch main    # first ti
 npm run deploy                                                        # build + upload; prints the pages.dev link
 ```
 
-Alternatively, connect the GitHub repository in the Cloudflare dashboard:
+Automatic deploys: `.github/workflows/deploy.yml` tests, builds and deploys every push to `main`, once the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set (Settings → Secrets and variables → Actions).
+
+Live at https://ortigia.pages.dev (custom domain: ortigia.zankay.com).
+
+The project was created by direct upload, so it cannot be connected to Git in the Cloudflare dashboard; the workflow does that job. For reference, the dashboard settings for a Git-connected project would be:
 
 Build settings: root directory empty (the repository root), build command `npm run build`, output directory `dist`. Node 22 is pinned in `.nvmrc`. `public/_headers` gives the hashed asset files long-lived caching.
 
