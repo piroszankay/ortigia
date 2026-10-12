@@ -34,4 +34,7 @@ jobs:
         run: npx wrangler pages deploy dist --project-name ortigia --branch main
       - name: Explain skipped deploy
         if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
-        run: echo "::notice::Deploy skipped - add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to enable it."
+        run: |
+          [ -z "$CLOUDFLARE_API_TOKEN" ] && echo "::warning::Deploy skipped: repository secret CLOUDFLARE_API_TOKEN is missing or empty."
+          [ -z "$CLOUDFLARE_ACCOUNT_ID" ] && echo "::warning::Deploy skipped: repository secret CLOUDFLARE_ACCOUNT_ID is missing or empty."
+          true
