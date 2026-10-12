@@ -12,12 +12,14 @@
     "map:approx": "tsx scripts/make-approx-data.ts",
     "map:fetch": "tsx scripts/fetch-osm.ts",
     "map:build": "tsx scripts/build-map.ts",
-    "test:sim": "tsx scripts/sim-test.ts"
+    "test:sim": "tsx scripts/sim-test.ts",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name ortigia --branch main"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "wrangler": "^4.149.0"
   }
 }

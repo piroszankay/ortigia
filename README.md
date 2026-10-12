@@ -14,6 +14,17 @@ npm run build:single  # one self-contained HTML file in dist/
 
 ## Deploying (Cloudflare Pages)
 
+From your own computer (Node 22):
+
+```bash
+npm install
+npx wrangler login                                                    # opens the browser: click Allow
+npx wrangler pages project create ortigia --production-branch main    # first time only
+npm run deploy                                                        # build + upload; prints the pages.dev link
+```
+
+Alternatively, connect the GitHub repository in the Cloudflare dashboard:
+
 Build settings: root directory empty (the repository root), build command `npm run build`, output directory `dist`. Node 22 is pinned in `.nvmrc`. `public/_headers` gives the hashed asset files long-lived caching.
 
 Every tunable number lives in [`src/config.ts`](src/config.ts).
