@@ -1,0 +1,28 @@
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+body { font-family: ui-monospace, Menlo, Consolas, monospace; color: #cfc6b4; }
+#app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#hud { position: fixed; inset: 0; pointer-events: none; }
+#crosshair {
+  position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px;
+  border-radius: 50%; background: rgba(230, 220, 200, 0.75); box-shadow: 0 0 2px #000;
+  transition: transform 0.12s, background 0.12s;
+}
+#crosshair.active { transform: scale(1.8); background: rgba(255, 214, 150, 0.95); }
+#label {
+  position: absolute; left: 50%; top: calc(50% + 18px); transform: translateX(-50%);
+  font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+  color: rgba(236, 222, 196, 0.85); text-shadow: 0 0 4px #000, 0 0 8px #000;
+  opacity: 0; transition: opacity 0.15s;
+}
+#label.show { opacity: 1; }
+#overlay {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.35), rgba(0,0,0,0.85)); cursor: pointer;
+}
+#overlay.hidden { display: none; }
+#overlay .card { max-width: 420px; padding: 0 16px; text-align: center; }
+#overlay h1 { font-weight: 400; letter-spacing: 0.4em; text-transform: uppercase; font-size: 22px; margin: 0 0 8px; color: #e8dcc4; }
+#overlay p { margin: 0 0 18px; opacity: 0.8; animation: pulse 2.4s ease-in-out infinite; }
+#overlay ul { list-style: none; padding: 0; margin: 0; font-size: 12px; line-height: 1.9; opacity: 0.7; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+body:has(#overlay:not(.hidden)) #hud { display: none; }
